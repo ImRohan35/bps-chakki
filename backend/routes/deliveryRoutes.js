@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../config/db');
 const { authenticate, deliveryOrAdminOnly } = require('../middleware/auth');
+const { sendOrderStatusUpdateNotifications } = require('../services/notificationService');
 
 const router = express.Router();
 
@@ -109,6 +110,11 @@ router.post('/complete-delivery/:orderId', (req, res) => {
       });
     }
 
+    // Trigger customer notification for delivery completion
+    sendOrderStatusUpdateNotifications(updatedOrder, 'Delivered').catch(err => {
+      console.error('[BPS Notification] Delivered notification failed:', err);
+    });
+
     res.json({
       success: true,
       message: `Order #${order.orderId} delivered and COD cash of ₹${order.totalAmount} collected!`,
@@ -139,6 +145,11 @@ router.post('/out-for-delivery/:orderId', (req, res) => {
     const updated = db.Orders.updateById(order._id, {
       orderStatus: 'Out for Delivery',
       statusTimeline: timeline
+    });
+
+    // Trigger customer notification for Out for Delivery
+    sendOrderStatusUpdateNotifications(updated, 'Out for Delivery').catch(err => {
+      console.error('[BPS Notification] Out for Delivery notification failed:', err);
     });
 
     res.json({ success: true, message: 'Order status updated to Out for Delivery', order: updated });

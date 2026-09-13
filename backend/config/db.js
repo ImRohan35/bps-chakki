@@ -200,7 +200,8 @@ const db = {
   Categories: new JsonCollection('categories'),
   AuditLogs: new JsonCollection('audit_logs'),
   StockHistory: new JsonCollection('stock_history'),
-  Inquiries: new JsonCollection('inquiries')
+  Inquiries: new JsonCollection('inquiries'),
+  Notifications: new JsonCollection('notifications')
 };
 
 module.exports = db;

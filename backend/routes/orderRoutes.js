@@ -2,7 +2,12 @@ const express = require('express');
 const db = require('../config/db');
 const { authenticate, optionalAuthenticate } = require('../middleware/auth');
 const { validateDeliveryArea, calculateDistanceKm } = require('../utils/distance');
-const { sendAdminNewOrderEmail, sendOrderConfirmationNotifications, sendOrderCancelledNotifications } = require('../services/notificationService');
+const {
+  sendCustomerOrderReceivedNotifications,
+  sendAdminNewOrderEmail,
+  sendOrderConfirmationNotifications,
+  sendOrderCancelledNotifications
+} = require('../services/notificationService');
 
 const router = express.Router();
 
@@ -194,7 +199,10 @@ router.post('/', authenticate, (req, res) => {
       ]
     });
 
-    // 9. Send Email notification immediately to ADMIN (Customer confirmation sent only after admin confirms)
+    // 9. Immediately trigger real-time notifications (Customer WhatsApp + Customer Email + Admin Email)
+    sendCustomerOrderReceivedNotifications(newOrder).catch(err => {
+      console.error('[BPS Notification] Customer order received notification failed:', err);
+    });
     sendAdminNewOrderEmail(newOrder).catch(err => {
       console.error('[BPS Notification] Admin new order email dispatch failed:', err);
     });
@@ -333,12 +341,10 @@ router.post('/:id/cancel', optionalAuthenticate, async (req, res) => {
       statusTimeline: timeline
     });
 
-    // Send automated WhatsApp + Email notifications
-    try {
-      await sendOrderCancelledNotifications(updated, reason || 'Customer requested cancellation');
-    } catch (err) {
+    // Trigger automated notifications (Customer WhatsApp + Customer Email + Admin Email)
+    sendOrderCancelledNotifications(updated, reason || 'Customer requested cancellation', 'customer').catch(err => {
       console.error('[BPS Notification] Order cancellation notification error:', err);
-    }
+    });
 
     res.json({ success: true, message: 'Order has been cancelled successfully', order: updated });
   } catch (err) {
