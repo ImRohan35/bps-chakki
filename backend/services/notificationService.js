@@ -145,18 +145,21 @@ async function sendWhatsAppMessage(recipientPhone, messageText) {
 // ─────────────────────────────────────────────────────────────
 
 function createEmailTransporter() {
-  const host = process.env.SMTP_HOST;
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
 
-  if (!host || !user || !pass) {
+  if (!user || !pass) {
     return null;
   }
 
+  const port = parseInt(process.env.SMTP_PORT || '465', 10);
+  const isSecure = port === 465 || process.env.SMTP_SECURE === 'true';
+
   return nodemailer.createTransport({
     host,
-    port: parseInt(process.env.SMTP_PORT || '587', 10),
-    secure: process.env.SMTP_SECURE === 'true',
+    port,
+    secure: isSecure,
     auth: { user, pass },
     tls: {
       rejectUnauthorized: false
