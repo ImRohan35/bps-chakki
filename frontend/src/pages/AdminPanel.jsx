@@ -213,8 +213,8 @@ function Dashboard({ navigate }) {
 
   return (
     <div>
-      {/* Top 3 Stat Cards (Exactly matching Image 4) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+      {/* Top Stat Cards (Overview Metrics) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
         <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
           <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#2E8B57', marginBottom: '0.35rem' }}>{fmt(todaySales)}</div>
           <div style={{ fontSize: '0.9rem', color: '#667085', fontWeight: 600 }}>Today's Sales</div>
@@ -228,6 +228,13 @@ function Dashboard({ navigate }) {
         <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
           <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#173D32', marginBottom: '0.35rem' }}>{totalOrders}</div>
           <div style={{ fontSize: '0.9rem', color: '#667085', fontWeight: 600 }}>Total Orders</div>
+        </div>
+
+        <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+          <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#16a34a', marginBottom: '0.35rem' }}>
+            {data.activeDeliveryBoys ?? 2} <span style={{ fontSize: '1rem', color: '#667085', fontWeight: 600 }}>/ {data.totalDeliveryBoys ?? 2}</span>
+          </div>
+          <div style={{ fontSize: '0.9rem', color: '#667085', fontWeight: 600 }}>Active Delivery Partners</div>
         </div>
       </div>
 
@@ -656,17 +663,27 @@ function OrdersSection() {
           
           <div style={{ display: 'flex', gap: '1.5rem' }}>
             <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.5rem', color: '#667085', fontSize: '0.9rem' }}>Assign Delivery Boy</label>
-              <select style={{ width: '100%', padding: '0.8rem', border: '1px solid #E5E7EB', borderRadius: '8px', outline: 'none', background: '#FFFFFF' }} onChange={e => {
-                const agent = deliveryAgents.find(a => a._id === e.target.value);
-                if (agent) assignAgent(selectedOrder._id, agent);
-              }} defaultValue="">
-                <option value="">Select delivery boy…</option>
-                {deliveryAgents.filter(a => a.status !== 'inactive').map(a => <option key={a._id} value={a._id}>{a.name} ({a.mobile})</option>)}
+              <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.5rem', color: '#667085', fontSize: '0.9rem' }}>
+                {selectedOrder.assignedDeliveryBoy ? 'Reassign Delivery Partner' : 'Assign Delivery Partner'}
+              </label>
+              <select
+                style={{ width: '100%', padding: '0.8rem', border: '1px solid #E5E7EB', borderRadius: '8px', outline: 'none', background: '#FFFFFF', fontWeight: 600 }}
+                onChange={e => {
+                  const agent = deliveryAgents.find(a => a._id === e.target.value);
+                  if (agent) assignAgent(selectedOrder._id, agent);
+                }}
+                defaultValue=""
+              >
+                <option value="">{selectedOrder.assignedDeliveryBoy ? 'Choose new active partner to reassign…' : 'Select active delivery partner…'}</option>
+                {deliveryAgents.filter(a => a.status === 'active').map(a => (
+                  <option key={a._id} value={a._id}>
+                    {a.name} ({a.mobile}) — Active 🟢
+                  </option>
+                ))}
               </select>
               {selectedOrder.assignedDeliveryBoy && (
-                <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#2E8B57', fontWeight: 600 }}>
-                  Assigned: {selectedOrder.assignedDeliveryBoy.name} ({selectedOrder.assignedDeliveryBoy.phone})
+                <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#166534', fontWeight: 700, backgroundColor: '#F0FDF4', padding: '6px 10px', borderRadius: '6px', border: '1px solid #BBF7D0' }}>
+                  Currently Assigned: {selectedOrder.assignedDeliveryBoy.name} ({selectedOrder.assignedDeliveryBoy.phone})
                 </div>
               )}
             </div>
@@ -716,6 +733,7 @@ function ProductsSection() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: '', category: '', shortDescription: '', description: '', ingredients: '', price: '', originalPrice: '', weight: '5 KG', stock: 25, lowStockThreshold: 5, isFeatured: false, isBestSeller: false, isNew: false, isActive: true, image: '' });
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const fileRef = useRef();
 
   const load = useCallback(() => {
@@ -738,17 +756,26 @@ function ProductsSection() {
   const openEdit = (p) => { setEditing(p); setForm({ ...p }); setModal('edit'); };
 
   const handleImageUpload = async (file) => {
-    const fd = new FormData(); fd.append('image', file);
-    const token = localStorage.getItem('bps_token');
-    const apiBase = (import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '');
-    const uploadUrl = `${apiBase}/admin/upload`;
-    const r = await fetch(uploadUrl, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
-    const data = await r.json();
-    if (data.success) {
-      const serverOrigin = apiBase.startsWith('http') ? apiBase.replace(/\/api$/, '') : '';
-      setForm(f => ({ ...f, image: `${serverOrigin}${data.url}` }));
-    } else {
-      alert('Upload failed: ' + data.message);
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const token = localStorage.getItem('bps_token');
+      const apiBase = (import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '');
+      const uploadUrl = `${apiBase}/admin/upload`;
+      const r = await fetch(uploadUrl, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
+      const data = await r.json();
+      if (data.success) {
+        const serverOrigin = apiBase.startsWith('http') ? apiBase.replace(/\/api$/, '') : '';
+        setForm(f => ({ ...f, image: `${serverOrigin}${data.url}` }));
+      } else {
+        alert('Upload failed: ' + (data.message || 'Error'));
+      }
+    } catch (err) {
+      alert('Upload error: ' + err.message);
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -881,11 +908,69 @@ function ProductsSection() {
           </div>
           
           <div style={{ marginTop: '1rem' }}>
-            <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.5rem', color: '#667085', fontSize: '0.9rem' }}>Product Image URL</label>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <input style={{ width: '100%', padding: '0.8rem', border: '1px solid #E5E7EB', borderRadius: '8px', outline: 'none' }} value={form.image} onChange={e => setForm(f => ({ ...f, image: e.target.value }))} placeholder="Paste image URL" />
+            <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.5rem', color: '#667085', fontSize: '0.9rem' }}>
+              Product Image (Phone Camera / Gallery or URL)
+            </label>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                style={{ flex: 1, minWidth: '220px', padding: '0.8rem', border: '1px solid #E5E7EB', borderRadius: '8px', outline: 'none' }}
+                value={form.image}
+                onChange={e => setForm(f => ({ ...f, image: e.target.value }))}
+                placeholder="Paste image URL or upload from device"
+              />
+              <input
+                type="file"
+                ref={fileRef}
+                accept="image/*"
+                capture="environment"
+                style={{ display: 'none' }}
+                onChange={e => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleImageUpload(e.target.files[0]);
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploadingImage}
+                style={{
+                  padding: '0.75rem 1.25rem',
+                  background: '#2E8B57',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 700,
+                  fontSize: '0.88rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <Camera size={16} /> {uploadingImage ? 'Uploading…' : '📷 Upload Photo / Camera'}
+              </button>
             </div>
-            {form.image && <img src={form.image} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: '8px', marginTop: '10px' }} />}
+            {form.image && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '10px' }}>
+                <img
+                  src={form.image}
+                  alt="Preview"
+                  style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: '8px', border: '2px solid #2E8B57' }}
+                />
+                <div>
+                  <div style={{ fontSize: '0.8rem', color: '#16a34a', fontWeight: 700 }}>✔ Image Selected & Ready</div>
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, image: '' }))}
+                    style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '0.78rem', cursor: 'pointer', padding: '2px 0', textDecoration: 'underline' }}
+                  >
+                    Remove Image
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           
           <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', margin: '1.5rem 0' }}>
@@ -1562,6 +1647,7 @@ function DeliverySection() {
   const [settleAmount, setSettleAmount] = useState('');
   const [settleNotes, setSettleNotes] = useState('');
   const [settlements, setSettlements] = useState([]);
+  const [settleSearch, setSettleSearch] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -1587,10 +1673,27 @@ function DeliverySection() {
     if (r.success) { setSettleModal(null); setSettleAmount(''); setSettleNotes(''); load(); } else alert(r.message);
   };
 
+  const activeCount = agents.filter(a => a.status === 'active').length;
+  const inactiveCount = agents.filter(a => a.status !== 'active').length;
+
+  const filteredSettlements = settlements.filter(s => {
+    if (!settleSearch.trim()) return true;
+    const q = settleSearch.toLowerCase();
+    return (s.agentName && s.agentName.toLowerCase().includes(q)) ||
+           (s.recordedBy && s.recordedBy.toLowerCase().includes(q)) ||
+           (s.notes && s.notes.toLowerCase().includes(q)) ||
+           String(s.amountDeposited).includes(q);
+  });
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>Delivery Boys ({agents.length})</h2>
+        <div>
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>Delivery Partners</h2>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+            Total: <strong>{agents.length}</strong> • Active: <strong style={{ color: '#16a34a' }}>{activeCount}</strong> • Inactive: <strong style={{ color: '#dc2626' }}>{inactiveCount}</strong>
+          </div>
+        </div>
         <button onClick={() => { setForm({ name: '', mobile: '', email: '', password: '' }); setModal(true); }} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Add Delivery Boy</button>
       </div>
       {loading ? <Loader /> : (
@@ -1603,7 +1706,7 @@ function DeliverySection() {
               </div>
               <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>📱 {a.mobile}</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.75rem', fontSize: '0.82rem' }}>
-                <div><div style={{ color: 'var(--text-muted)' }}>Assigned Orders</div><div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{fmt(a.totalAssigned)}</div></div>
+                <div><div style={{ color: 'var(--text-muted)' }}>Assigned Orders</div><div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{fmt(a.totalAssigned || a.activeOrdersCount || 0)}</div></div>
                 <div><div style={{ color: 'var(--text-muted)' }}>Cash Collected</div><div style={{ fontWeight: 700, color: '#16a34a' }}>{fmt(a.totalCashCollected)}</div></div>
                 <div><div style={{ color: 'var(--text-muted)' }}>Cash Deposited</div><div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{fmt(a.totalCashDeposited)}</div></div>
                 <div><div style={{ color: 'var(--text-muted)' }}>Cash In Hand</div><div style={{ fontWeight: 700, color: a.cashDifference !== 0 ? '#dc2626' : '#16a34a' }}>{fmt(a.cashDifference)}</div></div>
@@ -1622,10 +1725,22 @@ function DeliverySection() {
 
       {/* Cash Settlements Log */}
       <div style={{ marginTop: '2.5rem' }}>
-        <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '1rem', color: 'var(--text-primary)' }}>
-          Recent Cash Settlement Ledger ({settlements.length})
-        </h3>
-        {settlements.length === 0 ? (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+            Recent Cash Settlement Ledger ({filteredSettlements.length})
+          </h3>
+          <div style={{ position: 'relative', minWidth: '220px' }}>
+            <input
+              type="text"
+              placeholder="Search partner, admin, note…"
+              value={settleSearch}
+              onChange={e => setSettleSearch(e.target.value)}
+              style={{ ...inputStyle, padding: '0.45rem 0.75rem', fontSize: '0.82rem' }}
+            />
+          </div>
+        </div>
+
+        {filteredSettlements.length === 0 ? (
           <div style={{ padding: '1.5rem', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
             No cash deposits recorded yet. When a delivery boy returns in the evening and hands over collected COD cash, click <strong>"Record Deposit"</strong> on their card above to log it here.
           </div>
@@ -1635,14 +1750,15 @@ function DeliverySection() {
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
                   <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontWeight: 700 }}>Date & Time</th>
-                  <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontWeight: 700 }}>Delivery Boy</th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontWeight: 700 }}>Delivery Partner</th>
                   <th style={{ padding: '0.75rem 1rem', textAlign: 'right', fontWeight: 700 }}>Amount Handed Over</th>
                   <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontWeight: 700 }}>Notes</th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontWeight: 700 }}>Recorded By</th>
                   <th style={{ padding: '0.75rem 1rem', textAlign: 'center', fontWeight: 700 }}>Status</th>
                 </tr>
               </thead>
               <tbody>
-                {settlements.slice(0, 15).map(s => (
+                {filteredSettlements.slice(0, 20).map(s => (
                   <tr key={s._id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                     <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>
                       {new Date(s.date).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -1656,9 +1772,12 @@ function DeliverySection() {
                     <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>
                       {s.notes || 'Evening counter settlement'}
                     </td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#173D32', fontWeight: 600 }}>
+                      {s.recordedBy || 'Super Admin'}
+                    </td>
                     <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
                       <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '999px', background: '#dcfce7', color: '#16a34a', fontWeight: 700 }}>
-                        ✓ Received
+                        ✓ {s.status || 'Received'}
                       </span>
                     </td>
                   </tr>

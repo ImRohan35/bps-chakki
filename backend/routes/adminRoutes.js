@@ -51,6 +51,9 @@ router.get('/dashboard', (req, res) => {
     const customers = db.Users.find(u => u.role === 'customer');
     const returnRequests = db.ReturnRequests.find();
     const offers = db.Offers.find();
+    const deliveryAgents = db.DeliveryAgents.find();
+    const activeDeliveryBoys = deliveryAgents.filter(a => a.status === 'active').length;
+    const inactiveDeliveryBoys = deliveryAgents.filter(a => a.status !== 'active').length;
 
     const todayStr = new Date().toISOString().slice(0, 10);
     const monthStr = new Date().toISOString().slice(0, 7);
@@ -110,6 +113,9 @@ router.get('/dashboard', (req, res) => {
       success: true, stats: {
         todayOrdersCount, todaySales, totalSales, monthlySales,
         totalOrders: orders.length, totalCustomers: customers.length,
+        totalDeliveryBoys: deliveryAgents.length,
+        activeDeliveryBoys,
+        inactiveDeliveryBoys,
         pendingOrders: statusCounts['Order Placed'] + statusCounts['Confirmed'] + statusCounts['Preparing'],
         deliveredOrders: statusCounts['Delivered'], cancelledOrders: statusCounts['Cancelled'],
         outForDelivery: statusCounts['Out for Delivery'],
@@ -311,12 +317,52 @@ router.put('/orders/:id/assign-delivery', (req, res) => {
     const { agentId, agentName, agentPhone } = req.body;
     const order = db.Orders.findOne(o => o._id === id || o.orderId === id);
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    // Validate active delivery agent
+    const agent = db.DeliveryAgents.findOne(a => a._id === agentId || a.userId === agentId);
+    if (agent && agent.status !== 'active') {
+      return res.status(400).json({ success: false, message: 'Selected delivery partner is currently inactive and cannot receive new orders.' });
+    }
+
     const timeline = order.statusTimeline || [];
-    timeline.push({ status: order.orderStatus, timestamp: new Date().toISOString(), note: `Assigned to: ${agentName} (${agentPhone})` });
-    const updated = db.Orders.updateById(order._id, { assignedDeliveryBoy: { agentId, name: agentName, phone: agentPhone }, statusTimeline: timeline });
-    logAdminAction(req.user, 'ORDER_ASSIGNED', { orderId: order.orderId, agent: agentName });
-    res.json({ success: true, message: `Assigned to ${agentName}`, order: updated });
-  } catch (err) { res.status(500).json({ success: false, message: 'Failed to assign agent' }); }
+    const prevAgentName = order.assignedDeliveryBoy?.name;
+    const isReassigned = Boolean(prevAgentName && prevAgentName !== agentName);
+
+    const assignmentNote = isReassigned
+      ? `Reassigned from ${prevAgentName} to ${agentName} (${agentPhone}) by ${req.user?.name || 'Admin'}`
+      : `Assigned to: ${agentName} (${agentPhone}) by ${req.user?.name || 'Admin'}`;
+
+    timeline.push({
+      status: order.orderStatus,
+      timestamp: new Date().toISOString(),
+      note: assignmentNote
+    });
+
+    const updated = db.Orders.updateById(order._id, {
+      assignedDeliveryBoy: {
+        agentId,
+        name: agentName,
+        phone: agentPhone,
+        assignedAt: new Date().toISOString()
+      },
+      statusTimeline: timeline
+    });
+
+    logAdminAction(req.user, 'ORDER_ASSIGNED', {
+      orderId: order.orderId,
+      agent: agentName,
+      reassigned: isReassigned,
+      previousAgent: prevAgentName || null
+    });
+
+    res.json({
+      success: true,
+      message: isReassigned ? `Order reassigned to ${agentName}` : `Assigned to ${agentName}`,
+      order: updated
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to assign agent' });
+  }
 });
 
 // ──────────────────────────────────────────────
@@ -667,19 +713,67 @@ router.put('/delivery-agents/:id', (req, res) => {
 router.post('/cash-settlement', (req, res) => {
   try {
     const { agentId, amountDeposited, notes } = req.body;
-    const agent = db.DeliveryAgents.findById(agentId) || db.DeliveryAgents.findOne({ userId: agentId });
-    if (!agent) return res.status(404).json({ success: false, message: 'Agent not found' });
+    const agent = db.DeliveryAgents.findById(agentId) || db.DeliveryAgents.findOne(a => a._id === agentId || a.userId === agentId);
+    if (!agent) return res.status(404).json({ success: false, message: 'Delivery agent not found' });
+    
     const depositAmount = Number(amountDeposited) || 0;
-    const newTotal = (agent.totalCashDeposited || 0) + depositAmount;
-    db.DeliveryAgents.updateById(agent._id, { totalCashDeposited: newTotal, cashDifference: (agent.totalCashCollected || 0) - newTotal });
-    const record = db.CashSettlements.insertOne({ agentId: agent._id, agentName: agent.name, amountDeposited: depositAmount, notes: notes || '', date: new Date().toISOString() });
-    logAdminAction(req.user, 'CASH_SETTLED', { agentName: agent.name, amount: depositAmount });
-    res.json({ success: true, message: `₹${depositAmount} recorded for ${agent.name}`, settlementRecord: record });
-  } catch (err) { res.status(500).json({ success: false, message: 'Failed to record settlement' }); }
+    if (depositAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid deposit amount greater than 0.' });
+    }
+
+    const currentDeposited = agent.totalCashDeposited || 0;
+    const currentCollected = agent.totalCashCollected || 0;
+    const newTotalDeposited = currentDeposited + depositAmount;
+    const outstandingCash = Math.max(0, currentCollected - newTotalDeposited);
+
+    db.DeliveryAgents.updateById(agent._id, {
+      totalCashDeposited: newTotalDeposited,
+      cashDifference: outstandingCash
+    });
+
+    const record = db.CashSettlements.insertOne({
+      agentId: agent._id,
+      agentName: agent.name,
+      agentMobile: agent.mobile,
+      amountDeposited: depositAmount,
+      notes: notes || '',
+      recordedBy: req.user?.name || 'Super Admin',
+      recordedById: req.user?._id || '',
+      status: 'Received',
+      date: new Date().toISOString()
+    });
+
+    logAdminAction(req.user, 'CASH_SETTLED', {
+      agentName: agent.name,
+      amount: depositAmount,
+      notes: notes || ''
+    });
+
+    res.json({
+      success: true,
+      message: `₹${depositAmount} cash handover recorded for ${agent.name}`,
+      settlementRecord: record
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to record settlement' });
+  }
 });
 
 router.get('/cash-settlements', (req, res) => {
-  const records = db.CashSettlements.find();
+  let records = db.CashSettlements.find();
+  const { agentId, search } = req.query;
+  if (agentId) {
+    records = records.filter(r => r.agentId === agentId || (r.agentName && r.agentName.toLowerCase().includes(agentId.toLowerCase())));
+  }
+  if (search && search.trim()) {
+    const q = search.trim().toLowerCase();
+    records = records.filter(r =>
+      (r.agentName && r.agentName.toLowerCase().includes(q)) ||
+      (r.recordedBy && r.recordedBy.toLowerCase().includes(q)) ||
+      (r.notes && r.notes.toLowerCase().includes(q)) ||
+      (r.amountDeposited && String(r.amountDeposited).includes(q))
+    );
+  }
   records.sort((a, b) => new Date(b.date) - new Date(a.date));
   res.json({ success: true, settlements: records });
 });
