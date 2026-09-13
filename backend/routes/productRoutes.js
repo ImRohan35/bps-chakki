@@ -110,7 +110,23 @@ router.get('/categories', (req, res) => {
 // 4. GET SINGLE PRODUCT BY ID OR SLUG
 router.get('/:id', (req, res) => {
   const { id } = req.params;
-  const product = db.Products.findOne(p => p._id === id || p.slug === id);
+  const decoded = decodeURIComponent(id || '').trim();
+  const lower = decoded.toLowerCase();
+
+  let product = db.Products.findOne(p => 
+    (p._id && p._id.toLowerCase() === lower) ||
+    (p.slug && p.slug.toLowerCase() === lower) ||
+    (p._id === id) ||
+    (p.slug === id)
+  );
+
+  if (!product) {
+    product = db.Products.findOne(p => 
+      (p.name && p.name.toLowerCase() === lower) ||
+      (p.name && p.name.toLowerCase().replace(/\s+/g, '-') === lower)
+    );
+  }
+
   if (!product) {
     return res.status(404).json({ success: false, message: 'Product not found' });
   }

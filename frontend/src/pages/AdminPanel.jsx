@@ -538,8 +538,20 @@ function OrdersSection() {
               <div style={{ fontWeight: 800, color: '#173D32', fontSize: '1.1rem' }}>{selectedOrder.paymentStatus}</div>
             </div>
             <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', padding: '1rem', borderRadius: '8px' }}>
-              <div style={{ fontSize: '0.85rem', color: '#667085', marginBottom: '0.5rem', fontWeight: 600 }}>Delivery OTP</div>
-              <div style={{ fontWeight: 800, color: '#173D32', fontSize: '1.1rem', letterSpacing: '2px' }}>{selectedOrder.deliveryOtp || '—'}</div>
+              <div style={{ fontSize: '0.85rem', color: '#667085', marginBottom: '0.5rem', fontWeight: 600 }}>Delivery OTP & Verification</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
+                <span style={{ fontWeight: 800, color: '#173D32', fontSize: '1.15rem', letterSpacing: '2px' }}>{selectedOrder.deliveryOtp || '—'}</span>
+                <span style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  padding: '3px 8px',
+                  borderRadius: '999px',
+                  backgroundColor: selectedOrder.otpVerified ? '#DEF7EC' : '#FEF3C7',
+                  color: selectedOrder.otpVerified ? '#03543F' : '#92400E'
+                }}>
+                  {selectedOrder.otpVerified ? 'Verified ✅' : 'Pending ⏳'}
+                </span>
+              </div>
             </div>
           </div>
           

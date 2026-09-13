@@ -1271,6 +1271,77 @@ BPS Team`;
   return results;
 }
 
+/**
+ * Triggered immediately when ORDER IS DELIVERED by Delivery Boy:
+ * Admin Email Notification with Delivery Boy & OTP verified status
+ */
+async function sendAdminOrderDeliveredEmail(order, deliveryBoyName = '') {
+  if (!order) return null;
+  const adminEmail = (process.env.ADMIN_EMAIL || 'bpsfreshmill@gmail.com').trim();
+  const { productName } = getOrderProductSummary(order);
+
+  const subject = `BPS – Order Delivered – #${order.orderId}`;
+  const plainText = `🔔 Order Delivered
+
+Order #${order.orderId}
+Customer: ${order.customerName || 'Customer'}
+Delivery Boy: ${deliveryBoyName || order.deliveredBy?.name || 'Assigned Agent'}
+OTP Verified: ✅ Yes
+Total Collected: ₹${order.totalAmount}
+Time: ${new Date().toLocaleTimeString('en-IN')}`;
+
+  const htmlText = `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>${subject}</title></head>
+<body style="margin: 0; padding: 0; background: #F8FAF9; font-family: sans-serif; color: #1F2937;">
+  <div style="max-width: 560px; margin: 20px auto; background: #FFF; border-radius: 12px; overflow: hidden; border: 1px solid #E5E7EB;">
+    <div style="background: #173D32; padding: 20px 24px; text-align: center; color: #FFF;">
+      <h2 style="margin: 0; font-size: 22px;">🔔 Order Delivered</h2>
+      <p style="margin: 4px 0 0; color: #A7F3D0; font-size: 13px;">BPS Delivery Verification</p>
+    </div>
+    <div style="padding: 24px;">
+      <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+        <div style="font-size: 16px; font-weight: 800; color: #166534; margin-bottom: 8px;">Order #${order.orderId} Delivered Successfully!</div>
+        <div style="font-size: 14px; line-height: 1.6;">
+          <div><strong>Customer:</strong> ${order.customerName} (${order.customerPhone || 'N/A'})</div>
+          <div><strong>Delivery Boy:</strong> ${deliveryBoyName || order.deliveredBy?.name || 'Delivery Partner'}</div>
+          <div><strong>OTP Verified:</strong> <span style="color: #166534; font-weight: 800;">✅ YES</span></div>
+          <div><strong>Cash Collected:</strong> ₹${order.totalAmount}</div>
+          <div><strong>Product:</strong> ${productName}</div>
+          <div><strong>Delivered At:</strong> ${new Date().toLocaleString('en-IN')}</div>
+        </div>
+      </div>
+      <div style="text-align: center; margin-top: 15px;">
+        <a href="${getBaseFrontendUrl()}/admin/dashboard" style="display: inline-block; background: #173D32; color: #FFF; padding: 10px 24px; border-radius: 6px; text-decoration: none; font-weight: 700; font-size: 14px;">Open Admin Dashboard</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  let result = null;
+  try {
+    result = await sendEmailNotification({
+      to: adminEmail,
+      subject,
+      htmlText,
+      plainText,
+      fromName: 'BPS Delivery'
+    });
+  } catch (err) {
+    result = { success: false, status: 'failed', error: err.message };
+  }
+
+  recordNotificationLog(order, {
+    notificationType: 'ORDER_DELIVERED_ADMIN',
+    channel: 'Admin Email',
+    result
+  });
+
+  return result;
+}
+
 module.exports = {
   getBaseFrontendUrl,
   getTrackingUrl,
@@ -1283,5 +1354,6 @@ module.exports = {
   sendAdminNewOrderEmail,
   sendOrderConfirmationNotifications,
   sendOrderCancelledNotifications,
-  sendOrderStatusUpdateNotifications
+  sendOrderStatusUpdateNotifications,
+  sendAdminOrderDeliveredEmail
 };

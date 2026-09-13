@@ -21,7 +21,17 @@ import { useAuth } from '../context/AuthContext';
 import { fetchApi } from '../utils/api';
 
 export default function ProductDetails({ productId, navigate, onNotifyMe }) {
-  const activeProductId = productId || (typeof window !== 'undefined' ? localStorage.getItem('bps_selected_product_id') : null);
+  const getParamId = () => {
+    if (typeof window === 'undefined') return null;
+    const sp = new URLSearchParams(window.location.search);
+    const fromSearch = sp.get('product') || sp.get('productId') || sp.get('id');
+    if (fromSearch) return fromSearch;
+    const pathMatch = window.location.pathname.match(/^\/products?\/(.+)/i);
+    if (pathMatch && pathMatch[1]) return decodeURIComponent(pathMatch[1]);
+    return localStorage.getItem('bps_selected_product_id');
+  };
+
+  const activeProductId = productId || getParamId();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedWeight, setSelectedWeight] = useState('');
@@ -41,7 +51,9 @@ export default function ProductDetails({ productId, navigate, onNotifyMe }) {
 
   useEffect(() => {
     setLoading(true);
-    if (!activeProductId) {
+    const idToFetch = productId || getParamId();
+
+    if (!idToFetch) {
       fetchApi('/products')
         .then(res => {
           if (res.success && res.products && res.products.length > 0) {
@@ -56,7 +68,7 @@ export default function ProductDetails({ productId, navigate, onNotifyMe }) {
       return;
     }
 
-    fetchApi(`/products/${activeProductId}`)
+    fetchApi(`/products/${encodeURIComponent(idToFetch)}`)
       .then(res => {
         if (res.success && res.product) {
           setProduct(res.product);
@@ -74,9 +86,19 @@ export default function ProductDetails({ productId, navigate, onNotifyMe }) {
           });
         }
       })
-      .catch(err => console.error('Error loading product details:', err))
+      .catch(err => {
+        console.error('Error loading product details:', err);
+        return fetchApi('/products').then(fallbackRes => {
+          if (fallbackRes.success && fallbackRes.products && fallbackRes.products.length > 0) {
+            const first = fallbackRes.products[0];
+            setProduct(first);
+            setSelectedWeight(first.weight || (first.weights && first.weights[0]?.weight) || '5 KG');
+            setSelectedImage(first.image || (first.images && first.images[0]) || '');
+          }
+        });
+      })
       .finally(() => setLoading(false));
-  }, [activeProductId]);
+  }, [productId, activeProductId]);
 
   if (loading) {
     return (

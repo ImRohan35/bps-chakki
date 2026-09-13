@@ -237,7 +237,13 @@ router.get('/track/:id', optionalAuthenticate, (req, res) => {
     const { id } = req.params;
     const user = req.user;
 
-    const order = db.Orders.findOne(o => o._id === id || o.orderId === id);
+    const cleanId = (id || '').trim().toLowerCase();
+    const order = db.Orders.findOne(o => 
+      (o._id && o._id.toLowerCase() === cleanId) || 
+      (o.orderId && o.orderId.toLowerCase() === cleanId) ||
+      o._id === id || 
+      o.orderId === id
+    );
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
@@ -268,7 +274,13 @@ router.get('/:id', optionalAuthenticate, (req, res) => {
     const { id } = req.params;
     const user = req.user;
 
-    const order = db.Orders.findOne(o => o._id === id || o.orderId === id);
+    const cleanId = (id || '').trim().toLowerCase();
+    const order = db.Orders.findOne(o => 
+      (o._id && o._id.toLowerCase() === cleanId) || 
+      (o.orderId && o.orderId.toLowerCase() === cleanId) ||
+      o._id === id || 
+      o.orderId === id
+    );
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }

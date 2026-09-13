@@ -157,6 +157,51 @@ router.post('/admin-login', async (req, res) => {
   }
 });
 
+// 2c. SEPARATE DEDICATED DELIVERY BOY LOGIN
+router.post('/delivery-login', async (req, res) => {
+  try {
+    const { identifier, password } = req.body;
+    if (!identifier || !password) {
+      return res.status(400).json({ success: false, message: 'Please enter your mobile/email and password.' });
+    }
+
+    const clean = identifier.trim().toLowerCase();
+    const cleanMobile = clean.replace(/\D/g, '').slice(-10);
+
+    const user = db.Users.findOne(item => {
+      if (item.email && item.email.toLowerCase() === clean) return true;
+      if (item.mobile && cleanMobile && item.mobile === cleanMobile) return true;
+      return false;
+    });
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Invalid delivery credentials.' });
+    }
+
+    if (user.role !== 'delivery' && user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Access denied. Only authorized delivery personnel can login here.' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Invalid delivery credentials.' });
+    }
+
+    const token = generateToken(user);
+    const { password: _, ...userSafe } = user;
+
+    return res.json({
+      success: true,
+      message: 'Logged in to Delivery Portal!',
+      token,
+      user: userSafe
+    });
+  } catch (err) {
+    console.error('Delivery login error:', err);
+    return res.status(500).json({ success: false, message: 'Server error during delivery login.' });
+  }
+});
+
 // 3. GET CURRENT PROFILE
 router.get('/me', authenticate, (req, res) => {
   const { password: _, ...userSafe } = req.user;

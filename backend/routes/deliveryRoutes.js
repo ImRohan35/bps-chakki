@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../config/db');
 const { authenticate, deliveryOrAdminOnly } = require('../middleware/auth');
-const { sendOrderStatusUpdateNotifications } = require('../services/notificationService');
+const { sendOrderStatusUpdateNotifications, sendAdminOrderDeliveredEmail } = require('../services/notificationService');
 
 const router = express.Router();
 
@@ -73,7 +73,7 @@ router.post('/complete-delivery/:orderId', (req, res) => {
     }
 
     // OTP verification check
-    if (order.deliveryOtp && otp && order.deliveryOtp.trim() !== otp.trim()) {
+    if (!otp || (order.deliveryOtp && order.deliveryOtp.trim() !== otp.trim())) {
       return res.status(400).json({
         success: false,
         message: 'Invalid delivery OTP provided by customer. Please verify.'
@@ -84,7 +84,7 @@ router.post('/complete-delivery/:orderId', (req, res) => {
     timeline.push({
       status: 'Delivered',
       timestamp: new Date().toISOString(),
-      note: `Delivered by ${user.name}. Cash collected: ₹${order.totalAmount}`
+      note: `Delivered by ${user.name}. OTP verified: ${otp}. Cash collected: ₹${order.totalAmount}`
     });
 
     const updatedOrder = db.Orders.updateById(order._id, {
@@ -96,6 +96,8 @@ router.post('/complete-delivery/:orderId', (req, res) => {
         name: user.name,
         phone: user.mobile
       },
+      otpVerified: true,
+      otpVerifiedAt: new Date().toISOString(),
       statusTimeline: timeline
     });
 
@@ -110,9 +112,14 @@ router.post('/complete-delivery/:orderId', (req, res) => {
       });
     }
 
-    // Trigger customer notification for delivery completion
+    // Trigger customer notification for delivery completion (WhatsApp + Email)
     sendOrderStatusUpdateNotifications(updatedOrder, 'Delivered').catch(err => {
       console.error('[BPS Notification] Delivered notification failed:', err);
+    });
+
+    // Trigger admin notification for delivery completion
+    sendAdminOrderDeliveredEmail(updatedOrder, user.name).catch(err => {
+      console.error('[BPS Notification] Admin delivered notification failed:', err);
     });
 
     res.json({

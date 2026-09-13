@@ -24,11 +24,35 @@ export default function App() {
     const path = window.location.pathname.toLowerCase();
     const hash = window.location.hash.toLowerCase().replace('#', '');
     const searchParams = new URLSearchParams(window.location.search);
-    if (searchParams.get('id') || searchParams.get('orderId') || path.startsWith('/tracking') || path === 'tracking') {
+
+    // 1. Tracking: ONLY if path starts with /tracking or query specifies orderId or (id with /tracking)
+    if (path.startsWith('/tracking') || path === 'tracking' || searchParams.get('orderId')) {
       return 'tracking';
     }
+    if (searchParams.get('id') && path.startsWith('/tracking')) {
+      return 'tracking';
+    }
+
+    // 2. Product Details: if path is /product, /products, or product query params
+    if (
+      path.startsWith('/product') ||
+      path.startsWith('/products') ||
+      hash.startsWith('product') ||
+      searchParams.get('product') ||
+      searchParams.get('productId') ||
+      (searchParams.get('id') && !path.startsWith('/admin') && !path.startsWith('/delivery'))
+    ) {
+      return 'product';
+    }
+
+    // 3. Admin routes
     if (path === '/admin/login' || hash === 'admin/login' || hash === '/admin/login') return 'admin-login';
     if (path === '/admin/dashboard' || path === '/admin' || hash === 'admin/dashboard' || hash === 'admin') return 'admin-dashboard';
+
+    // 4. Delivery boy routes
+    if (path === '/delivery/login' || hash === 'delivery/login' || hash === '/delivery/login') return 'delivery-login';
+    if (path === '/delivery/dashboard' || path === '/delivery' || hash === 'delivery/dashboard' || hash === 'delivery') return 'delivery-dashboard';
+
     if (hash) return hash;
     if (path !== '/' && path !== '') return path.replace(/^\//, '');
     return 'home';
@@ -40,13 +64,21 @@ export default function App() {
   };
 
   const getInitialProductId = () => {
+    if (typeof window === 'undefined') return null;
+    const path = window.location.pathname;
     const searchParams = new URLSearchParams(window.location.search);
     const prodParam = searchParams.get('product') || searchParams.get('productId');
     if (prodParam) return prodParam;
-    if (searchParams.get('id') && !window.location.pathname.includes('/tracking')) {
+
+    const pathMatch = path.match(/^\/products?\/(.+)/i);
+    if (pathMatch && pathMatch[1]) {
+      return decodeURIComponent(pathMatch[1]);
+    }
+
+    if (searchParams.get('id') && !path.toLowerCase().includes('tracking') && !path.toLowerCase().includes('admin')) {
       return searchParams.get('id');
     }
-    return typeof window !== 'undefined' ? localStorage.getItem('bps_selected_product_id') : null;
+    return localStorage.getItem('bps_selected_product_id') || null;
   };
 
   const [route, setRoute] = useState(getInitialRoute);
@@ -70,6 +102,12 @@ export default function App() {
     } else if (clean === 'admin' || clean === 'admin/dashboard' || clean === 'admin-dashboard') {
       resolved = 'admin-dashboard';
       window.history.pushState(null, '', '/admin/dashboard');
+    } else if (clean === 'delivery/login' || clean === 'delivery-login') {
+      resolved = 'delivery-login';
+      window.history.pushState(null, '', '/delivery/login');
+    } else if (clean === 'delivery' || clean === 'delivery/dashboard' || clean === 'delivery-dashboard') {
+      resolved = 'delivery-dashboard';
+      window.history.pushState(null, '', '/delivery/dashboard');
     } else if (clean === 'home' || clean === '') {
       resolved = 'home';
       window.history.pushState(null, '', '/');
@@ -142,7 +180,7 @@ export default function App() {
     }, 2500);
   };
 
-  const isStandalone = ['admin-dashboard', 'admin', 'admin-login', 'delivery'].includes(route);
+  const isStandalone = ['admin-dashboard', 'admin', 'admin-login', 'delivery', 'delivery-login', 'delivery-dashboard'].includes(route);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--bg-primary)' }}>
@@ -257,7 +295,9 @@ export default function App() {
 
         {(route === 'admin-dashboard' || route === 'admin') && <AdminPanel navigate={navigate} />}
 
-        {route === 'delivery' && <DeliveryPortal navigate={navigate} />}
+        {(route === 'delivery' || route === 'delivery-dashboard' || route === 'delivery-login') && (
+          <DeliveryPortal navigate={navigate} initialMode={route === 'delivery-login' ? 'login' : 'dashboard'} />
+        )}
 
         {['return-policy', 'delivery-info', 'terms', 'privacy'].includes(route) && (
           <PolicyPages policyType={route} navigate={navigate} />
