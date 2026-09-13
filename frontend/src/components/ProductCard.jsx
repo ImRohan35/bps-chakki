@@ -54,14 +54,30 @@ export default function ProductCard({ product, onSelectProduct, onBuyNow, onNoti
     toggleWishlist(product);
   };
 
+  const handleGoToOrder = (e) => {
+    if (isOutOfStock) {
+      if (onNotifyMe) onNotifyMe(product);
+      return;
+    }
+    // Add selected product with variant weight to cart
+    addToCart(product, selectedWeight, 1);
+    // Jump straight to Order Checkout page
+    if (onBuyNow) {
+      onBuyNow(product);
+    } else if (onSelectProduct) {
+      onSelectProduct(product);
+    }
+  };
+
   return (
     <div
       className="product-card-premium"
-      onClick={() => onSelectProduct && onSelectProduct(product)}
+      onClick={handleGoToOrder}
       id={`product-card-${product._id || product.id}`}
+      style={{ cursor: 'pointer' }}
     >
       {/* Media & Badges */}
-      <div className="media-container">
+      <div className="media-container" onClick={handleGoToOrder} style={{ cursor: 'pointer' }}>
         <img
           src={product.image || (product.images && product.images[0]) || 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80'}
           alt={product.name}
