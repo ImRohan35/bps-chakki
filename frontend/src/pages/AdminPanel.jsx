@@ -430,22 +430,22 @@ function OrdersSection() {
                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
                       <button onClick={() => setSelectedOrder(o)} style={{ padding: '0.45rem 0.85rem', border: '1px solid #E2E8F0', borderRadius: '6px', background: '#FFFFFF', color: '#173D32', fontWeight: 700, cursor: 'pointer' }}>View</button>
                       {o.orderStatus === 'Pending Admin Confirmation' && (
-                        <>
-                          <button
-                            onClick={() => confirmOrder(o._id)}
-                            style={{ padding: '0.45rem 0.85rem', border: 'none', borderRadius: '6px', background: '#2E8B57', color: '#FFFFFF', fontWeight: 700, cursor: 'pointer' }}
-                            title="Confirm Order"
-                          >
-                            Confirm
-                          </button>
-                          <button
-                            onClick={() => cancelOrder(o._id)}
-                            style={{ padding: '0.45rem 0.85rem', border: 'none', borderRadius: '6px', background: '#DC2626', color: '#FFFFFF', fontWeight: 700, cursor: 'pointer' }}
-                            title="Cancel Order"
-                          >
-                            Cancel
-                          </button>
-                        </>
+                        <button
+                          onClick={() => confirmOrder(o._id)}
+                          style={{ padding: '0.45rem 0.85rem', border: 'none', borderRadius: '6px', background: '#2E8B57', color: '#FFFFFF', fontWeight: 700, cursor: 'pointer' }}
+                          title="Confirm Order"
+                        >
+                          Confirm
+                        </button>
+                      )}
+                      {['Pending Admin Confirmation', 'Confirmed'].includes(o.orderStatus) && (
+                        <button
+                          onClick={() => cancelOrder(o._id)}
+                          style={{ padding: '0.45rem 0.85rem', border: 'none', borderRadius: '6px', background: '#DC2626', color: '#FFFFFF', fontWeight: 700, cursor: 'pointer' }}
+                          title="Cancel Order"
+                        >
+                          Cancel
+                        </button>
                       )}
                     </div>
                   </td>
@@ -665,6 +665,28 @@ function OrdersSection() {
               </select>
             </div>
           </div>
+
+          {['Pending Admin Confirmation', 'Order Placed', 'Confirmed', 'Processing', 'Preparing'].includes(selectedOrder.orderStatus) && (
+            <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => cancelOrder(selectedOrder._id)}
+                style={{
+                  padding: '0.65rem 1.25rem',
+                  backgroundColor: '#DC2626',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <X size={16} /> Cancel Order
+              </button>
+            </div>
+          )}
         </Modal>
       )}
     </div>

@@ -2,7 +2,7 @@ const express = require('express');
 const db = require('../config/db');
 const { authenticate, optionalAuthenticate } = require('../middleware/auth');
 const { validateDeliveryArea, calculateDistanceKm } = require('../utils/distance');
-const { sendAdminNewOrderEmail, sendOrderConfirmationNotifications } = require('../services/notificationService');
+const { sendAdminNewOrderEmail, sendOrderConfirmationNotifications, sendOrderCancelledNotifications } = require('../services/notificationService');
 
 const router = express.Router();
 
@@ -288,10 +288,10 @@ router.get('/:id', optionalAuthenticate, (req, res) => {
 });
 
 // 4. CANCEL ORDER (Customer can cancel if not dispatched yet)
-router.post('/:id/cancel', authenticate, (req, res) => {
+router.post('/:id/cancel', optionalAuthenticate, async (req, res) => {
   try {
     const { id } = req.params;
-    const { reason } = req.body;
+    const { reason } = req.body || {};
     const user = req.user;
 
     const order = db.Orders.findOne(o => o._id === id || o.orderId === id);
@@ -299,7 +299,7 @@ router.post('/:id/cancel', authenticate, (req, res) => {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    if (user.role === 'customer' && order.customerId !== user._id && order.customerPhone !== user.mobile) {
+    if (user && user.role === 'customer' && order.customerId && order.customerId !== user._id && order.customerPhone !== user.mobile) {
       return res.status(403).json({ success: false, message: 'Unauthorized action' });
     }
 
@@ -311,7 +311,7 @@ router.post('/:id/cancel', authenticate, (req, res) => {
     }
 
     // Restock items
-    for (const item of order.items) {
+    for (const item of order.items || []) {
       const product = db.Products.findById(item.productId);
       if (product) {
         db.Products.updateById(product._id, {
@@ -333,8 +333,16 @@ router.post('/:id/cancel', authenticate, (req, res) => {
       statusTimeline: timeline
     });
 
+    // Send automated WhatsApp + Email notifications
+    try {
+      await sendOrderCancelledNotifications(updated, reason || 'Customer requested cancellation');
+    } catch (err) {
+      console.error('[BPS Notification] Order cancellation notification error:', err);
+    }
+
     res.json({ success: true, message: 'Order has been cancelled successfully', order: updated });
   } catch (err) {
+    console.error('Cancel order error:', err);
     res.status(500).json({ success: false, message: 'Failed to cancel order' });
   }
 });
