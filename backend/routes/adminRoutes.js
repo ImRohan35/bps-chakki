@@ -160,7 +160,7 @@ router.get('/orders/:id', (req, res) => {
   res.json({ success: true, order });
 });
 
-router.put('/orders/:id/status', (req, res) => {
+router.put('/orders/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
     const { status, note } = req.body;
