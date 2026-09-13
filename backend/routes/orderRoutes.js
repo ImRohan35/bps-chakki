@@ -54,7 +54,13 @@ router.post('/', authenticate, (req, res) => {
     const stockUpdates = [];
 
     for (const item of items) {
-      const product = db.Products.findById(item.productId);
+      let product = db.Products.findById(item.productId);
+      if (!product && item.name) {
+        product = db.Products.findOne(p => p.name.toLowerCase() === item.name.toLowerCase());
+        if (product) {
+          item.productId = product._id;
+        }
+      }
       if (!product || !product.isActive) {
         return res.status(400).json({
           success: false,
