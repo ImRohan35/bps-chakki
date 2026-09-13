@@ -1,0 +1,600 @@
+[
+  {
+    "_id": "bps_1789281823681_t0l2e05",
+    "createdAt": "2026-09-13T06:43:43.681Z",
+    "updatedAt": "2026-09-13T06:43:43.681Z",
+    "adminId": "bps_1789234051605_9ur1xl2",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "admin@bpschakki.com",
+    "action": "ADMIN_LOGIN",
+    "details": {
+      "email": "admin@bpschakki.com",
+      "role": "super_admin"
+    },
+    "timestamp": "2026-09-13T06:43:43.681Z"
+  },
+  {
+    "_id": "bps_1789281953183_uoiekmt",
+    "createdAt": "2026-09-13T06:45:53.183Z",
+    "updatedAt": "2026-09-13T06:45:53.183Z",
+    "adminId": "bps_1789234051605_9ur1xl2",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "admin@bpschakki.com",
+    "action": "PRODUCT_UPDATED",
+    "details": {
+      "id": "bps_1789226829335_fh4p9ke",
+      "name": "Pure Roasted Gram Sattu"
+    },
+    "timestamp": "2026-09-13T06:45:53.178Z"
+  },
+  {
+    "_id": "bps_1789281978633_nz4bzut",
+    "createdAt": "2026-09-13T06:46:18.633Z",
+    "updatedAt": "2026-09-13T06:46:18.633Z",
+    "adminId": "bps_1789234051605_9ur1xl2",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "admin@bpschakki.com",
+    "action": "PRODUCT_UPDATED",
+    "details": {
+      "id": "bps_1789226829334_a9htwfb",
+      "name": "Chakki Fresh Sharbati Atta"
+    },
+    "timestamp": "2026-09-13T06:46:18.628Z"
+  },
+  {
+    "_id": "bps_1789286367640_prjx3y4",
+    "createdAt": "2026-09-13T07:59:27.640Z",
+    "updatedAt": "2026-09-13T07:59:27.640Z",
+    "adminId": "bps_1789234051605_9ur1xl2",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "admin@bpschakki.com",
+    "action": "ADMIN_LOGIN",
+    "details": {
+      "email": "admin@bpschakki.com",
+      "role": "super_admin"
+    },
+    "timestamp": "2026-09-13T07:59:27.639Z"
+  },
+  {
+    "_id": "bps_1789288351054_5izwvvi",
+    "createdAt": "2026-09-13T08:32:31.054Z",
+    "updatedAt": "2026-09-13T08:32:31.054Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "ADMIN_LOGIN",
+    "details": {
+      "email": "bpsfreshmill@gmail.com",
+      "role": "super_admin"
+    },
+    "timestamp": "2026-09-13T08:32:31.053Z"
+  },
+  {
+    "_id": "bps_1789288573517_7pchn06",
+    "createdAt": "2026-09-13T08:36:13.517Z",
+    "updatedAt": "2026-09-13T08:36:13.517Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "PRODUCT_UPDATED",
+    "details": {
+      "id": "bps_1789226829335_rtnn9jz",
+      "name": "Diabetic Care Multigrain Atta"
+    },
+    "timestamp": "2026-09-13T08:36:13.517Z"
+  },
+  {
+    "_id": "bps_1789288575868_nze4lae",
+    "createdAt": "2026-09-13T08:36:15.868Z",
+    "updatedAt": "2026-09-13T08:36:15.868Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "PRODUCT_UPDATED",
+    "details": {
+      "id": "bps_1789226829335_rtnn9jz",
+      "name": "Diabetic Care Multigrain Atta"
+    },
+    "timestamp": "2026-09-13T08:36:15.863Z"
+  },
+  {
+    "_id": "bps_1789288668191_f73gtd2",
+    "createdAt": "2026-09-13T08:37:48.191Z",
+    "updatedAt": "2026-09-13T08:37:48.191Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "DELIVERY_AGENT_UPDATED",
+    "details": {
+      "id": "bps_1789226829278_wm0mp0z"
+    },
+    "timestamp": "2026-09-13T08:37:48.190Z"
+  },
+  {
+    "_id": "bps_1789288670603_9qjeqq2",
+    "createdAt": "2026-09-13T08:37:50.603Z",
+    "updatedAt": "2026-09-13T08:37:50.603Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "DELIVERY_AGENT_UPDATED",
+    "details": {
+      "id": "bps_1789226829294_is0mhgd"
+    },
+    "timestamp": "2026-09-13T08:37:50.601Z"
+  },
+  {
+    "_id": "bps_1789288702416_2125f9p",
+    "createdAt": "2026-09-13T08:38:22.416Z",
+    "updatedAt": "2026-09-13T08:38:22.416Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "SETTINGS_UPDATED",
+    "details": {
+      "keys": [
+        "_id",
+        "createdAt",
+        "updatedAt",
+        "shopName",
+        "tagline",
+        "phone",
+        "whatsapp",
+        "email",
+        "shopAddress",
+        "shopLat",
+        "shopLon",
+        "maxDeliveryRadiusKm",
+        "deliveryCharge",
+        "freeDeliveryThreshold",
+        "businessHours",
+        "returnPolicy",
+        "terms",
+        "privacyPolicy"
+      ]
+    },
+    "timestamp": "2026-09-13T08:38:22.416Z"
+  },
+  {
+    "_id": "bps_1789288799903_laiqmwq",
+    "createdAt": "2026-09-13T08:39:59.903Z",
+    "updatedAt": "2026-09-13T08:39:59.903Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "SETTINGS_UPDATED",
+    "details": {
+      "keys": [
+        "_id",
+        "createdAt",
+        "updatedAt",
+        "shopName",
+        "tagline",
+        "phone",
+        "whatsapp",
+        "email",
+        "shopAddress",
+        "shopLat",
+        "shopLon",
+        "maxDeliveryRadiusKm",
+        "deliveryCharge",
+        "freeDeliveryThreshold",
+        "businessHours",
+        "returnPolicy",
+        "terms",
+        "privacyPolicy"
+      ]
+    },
+    "timestamp": "2026-09-13T08:39:59.898Z"
+  },
+  {
+    "_id": "bps_1789288804228_rpfwpat",
+    "createdAt": "2026-09-13T08:40:04.228Z",
+    "updatedAt": "2026-09-13T08:40:04.228Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "SETTINGS_UPDATED",
+    "details": {
+      "keys": [
+        "_id",
+        "createdAt",
+        "updatedAt",
+        "shopName",
+        "tagline",
+        "phone",
+        "whatsapp",
+        "email",
+        "shopAddress",
+        "shopLat",
+        "shopLon",
+        "maxDeliveryRadiusKm",
+        "deliveryCharge",
+        "freeDeliveryThreshold",
+        "businessHours",
+        "returnPolicy",
+        "terms",
+        "privacyPolicy"
+      ]
+    },
+    "timestamp": "2026-09-13T08:40:04.225Z"
+  },
+  {
+    "_id": "bps_1789288805302_tkqwve2",
+    "createdAt": "2026-09-13T08:40:05.302Z",
+    "updatedAt": "2026-09-13T08:40:05.302Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "SETTINGS_UPDATED",
+    "details": {
+      "keys": [
+        "_id",
+        "createdAt",
+        "updatedAt",
+        "shopName",
+        "tagline",
+        "phone",
+        "whatsapp",
+        "email",
+        "shopAddress",
+        "shopLat",
+        "shopLon",
+        "maxDeliveryRadiusKm",
+        "deliveryCharge",
+        "freeDeliveryThreshold",
+        "businessHours",
+        "returnPolicy",
+        "terms",
+        "privacyPolicy"
+      ]
+    },
+    "timestamp": "2026-09-13T08:40:05.300Z"
+  },
+  {
+    "_id": "bps_1789288806191_5splq7b",
+    "createdAt": "2026-09-13T08:40:06.191Z",
+    "updatedAt": "2026-09-13T08:40:06.191Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "SETTINGS_UPDATED",
+    "details": {
+      "keys": [
+        "_id",
+        "createdAt",
+        "updatedAt",
+        "shopName",
+        "tagline",
+        "phone",
+        "whatsapp",
+        "email",
+        "shopAddress",
+        "shopLat",
+        "shopLon",
+        "maxDeliveryRadiusKm",
+        "deliveryCharge",
+        "freeDeliveryThreshold",
+        "businessHours",
+        "returnPolicy",
+        "terms",
+        "privacyPolicy"
+      ]
+    },
+    "timestamp": "2026-09-13T08:40:06.188Z"
+  },
+  {
+    "_id": "bps_1789288807377_4rbtemi",
+    "createdAt": "2026-09-13T08:40:07.377Z",
+    "updatedAt": "2026-09-13T08:40:07.377Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "SETTINGS_UPDATED",
+    "details": {
+      "keys": [
+        "_id",
+        "createdAt",
+        "updatedAt",
+        "shopName",
+        "tagline",
+        "phone",
+        "whatsapp",
+        "email",
+        "shopAddress",
+        "shopLat",
+        "shopLon",
+        "maxDeliveryRadiusKm",
+        "deliveryCharge",
+        "freeDeliveryThreshold",
+        "businessHours",
+        "returnPolicy",
+        "terms",
+        "privacyPolicy"
+      ]
+    },
+    "timestamp": "2026-09-13T08:40:07.375Z"
+  },
+  {
+    "_id": "bps_1789288808879_77f7nh3",
+    "createdAt": "2026-09-13T08:40:08.879Z",
+    "updatedAt": "2026-09-13T08:40:08.879Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "SETTINGS_UPDATED",
+    "details": {
+      "keys": [
+        "_id",
+        "createdAt",
+        "updatedAt",
+        "shopName",
+        "tagline",
+        "phone",
+        "whatsapp",
+        "email",
+        "shopAddress",
+        "shopLat",
+        "shopLon",
+        "maxDeliveryRadiusKm",
+        "deliveryCharge",
+        "freeDeliveryThreshold",
+        "businessHours",
+        "returnPolicy",
+        "terms",
+        "privacyPolicy"
+      ]
+    },
+    "timestamp": "2026-09-13T08:40:08.878Z"
+  },
+  {
+    "_id": "bps_1789288809962_1u5tj9u",
+    "createdAt": "2026-09-13T08:40:09.962Z",
+    "updatedAt": "2026-09-13T08:40:09.962Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "SETTINGS_UPDATED",
+    "details": {
+      "keys": [
+        "_id",
+        "createdAt",
+        "updatedAt",
+        "shopName",
+        "tagline",
+        "phone",
+        "whatsapp",
+        "email",
+        "shopAddress",
+        "shopLat",
+        "shopLon",
+        "maxDeliveryRadiusKm",
+        "deliveryCharge",
+        "freeDeliveryThreshold",
+        "businessHours",
+        "returnPolicy",
+        "terms",
+        "privacyPolicy"
+      ]
+    },
+    "timestamp": "2026-09-13T08:40:09.957Z"
+  },
+  {
+    "_id": "bps_1789288811283_6mudc5s",
+    "createdAt": "2026-09-13T08:40:11.283Z",
+    "updatedAt": "2026-09-13T08:40:11.283Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "SETTINGS_UPDATED",
+    "details": {
+      "keys": [
+        "_id",
+        "createdAt",
+        "updatedAt",
+        "shopName",
+        "tagline",
+        "phone",
+        "whatsapp",
+        "email",
+        "shopAddress",
+        "shopLat",
+        "shopLon",
+        "maxDeliveryRadiusKm",
+        "deliveryCharge",
+        "freeDeliveryThreshold",
+        "businessHours",
+        "returnPolicy",
+        "terms",
+        "privacyPolicy"
+      ]
+    },
+    "timestamp": "2026-09-13T08:40:11.277Z"
+  },
+  {
+    "_id": "bps_1789288869844_gyp2jjt",
+    "createdAt": "2026-09-13T08:41:09.844Z",
+    "updatedAt": "2026-09-13T08:41:09.844Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "SETTINGS_UPDATED",
+    "details": {
+      "keys": [
+        "_id",
+        "createdAt",
+        "updatedAt",
+        "shopName",
+        "tagline",
+        "phone",
+        "whatsapp",
+        "email",
+        "shopAddress",
+        "shopLat",
+        "shopLon",
+        "maxDeliveryRadiusKm",
+        "deliveryCharge",
+        "freeDeliveryThreshold",
+        "businessHours",
+        "returnPolicy",
+        "terms",
+        "privacyPolicy",
+        "supportWhatsapp"
+      ]
+    },
+    "timestamp": "2026-09-13T08:41:09.842Z"
+  },
+  {
+    "_id": "bps_1789288872546_d7j53ts",
+    "createdAt": "2026-09-13T08:41:12.547Z",
+    "updatedAt": "2026-09-13T08:41:12.547Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "SETTINGS_UPDATED",
+    "details": {
+      "keys": [
+        "_id",
+        "createdAt",
+        "updatedAt",
+        "shopName",
+        "tagline",
+        "phone",
+        "whatsapp",
+        "email",
+        "shopAddress",
+        "shopLat",
+        "shopLon",
+        "maxDeliveryRadiusKm",
+        "deliveryCharge",
+        "freeDeliveryThreshold",
+        "businessHours",
+        "returnPolicy",
+        "terms",
+        "privacyPolicy",
+        "supportWhatsapp"
+      ]
+    },
+    "timestamp": "2026-09-13T08:41:12.538Z"
+  },
+  {
+    "_id": "bps_1789288874371_8qe5dmn",
+    "createdAt": "2026-09-13T08:41:14.371Z",
+    "updatedAt": "2026-09-13T08:41:14.371Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "SETTINGS_UPDATED",
+    "details": {
+      "keys": [
+        "_id",
+        "createdAt",
+        "updatedAt",
+        "shopName",
+        "tagline",
+        "phone",
+        "whatsapp",
+        "email",
+        "shopAddress",
+        "shopLat",
+        "shopLon",
+        "maxDeliveryRadiusKm",
+        "deliveryCharge",
+        "freeDeliveryThreshold",
+        "businessHours",
+        "returnPolicy",
+        "terms",
+        "privacyPolicy",
+        "supportWhatsapp"
+      ]
+    },
+    "timestamp": "2026-09-13T08:41:14.357Z"
+  },
+  {
+    "_id": "bps_1789293650805_pjntw53",
+    "createdAt": "2026-09-13T10:00:50.805Z",
+    "updatedAt": "2026-09-13T10:00:50.805Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "ADMIN_LOGIN",
+    "details": {
+      "email": "bpsfreshmill@gmail.com",
+      "role": "super_admin"
+    },
+    "timestamp": "2026-09-13T10:00:50.800Z"
+  },
+  {
+    "_id": "bps_1789293693345_5a1ekss",
+    "createdAt": "2026-09-13T10:01:33.345Z",
+    "updatedAt": "2026-09-13T10:01:33.345Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "ADMIN_LOGIN",
+    "details": {
+      "email": "bpsfreshmill@gmail.com",
+      "role": "super_admin"
+    },
+    "timestamp": "2026-09-13T10:01:33.343Z"
+  },
+  {
+    "_id": "bps_1789299156006_kmkpf0y",
+    "createdAt": "2026-09-13T11:32:36.007Z",
+    "updatedAt": "2026-09-13T11:32:36.007Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "ADMIN_LOGIN",
+    "details": {
+      "email": "bpsfreshmill@gmail.com",
+      "role": "super_admin"
+    },
+    "timestamp": "2026-09-13T11:32:36.002Z"
+  },
+  {
+    "_id": "bps_1789299259634_7txmzv5",
+    "createdAt": "2026-09-13T11:34:19.634Z",
+    "updatedAt": "2026-09-13T11:34:19.634Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "ORDER_TRACKING_UPDATED",
+    "details": {
+      "orderId": "BPS1024",
+      "trackingNumber": "BPS-TRK-8899",
+      "expectedDeliveryDate": ""
+    },
+    "timestamp": "2026-09-13T11:34:19.631Z"
+  },
+  {
+    "_id": "bps_1789299278347_qkcs5gi",
+    "createdAt": "2026-09-13T11:34:38.348Z",
+    "updatedAt": "2026-09-13T11:34:38.348Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "ORDER_STATUS_CHANGED",
+    "details": {
+      "orderId": "BPS1024",
+      "from": "Preparing",
+      "to": "Confirmed"
+    },
+    "timestamp": "2026-09-13T11:34:38.341Z"
+  },
+  {
+    "_id": "bps_1789299300652_hdm92l5",
+    "createdAt": "2026-09-13T11:35:00.652Z",
+    "updatedAt": "2026-09-13T11:35:00.652Z",
+    "adminId": "bps_1789229784758_gvvs24y",
+    "adminName": "BPS Fresh Mills — Super Admin",
+    "adminEmail": "bpsfreshmill@gmail.com",
+    "action": "ORDER_STATUS_CHANGED",
+    "details": {
+      "orderId": "BPS1024",
+      "from": "Confirmed",
+      "to": "Processing"
+    },
+    "timestamp": "2026-09-13T11:35:00.650Z"
+  }
+]

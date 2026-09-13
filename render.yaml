@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: bps-fresh-mills
+    env: node
+    plan: free
+    buildCommand: npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: bpsfreshmill@gmail.com
+      - key: ADMIN_INITIAL_PASSWORD
+        value: bps@2005
+      # Optional: set FRONTEND_URL to your custom domain or leave empty for auto-detection
+      - key: FRONTEND_URL
+        sync: false

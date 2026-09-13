@@ -1,0 +1,148 @@
+# Implementation Plan: BPS Fresh Mills E-Commerce Platform
+
+A complete, production-grade, responsive e-commerce web application for **BPS Fresh Mills** ("Freshly Milled. Naturally Good.") — a local chakki flour business selling freshly milled chakki atta, multigrain atta, millets, and specialty flours directly to customers within a configurable 15 KM delivery radius.
+
+## User Review Required
+
+> [!IMPORTANT]
+> - **Theme & Palette**: Built around warm cream/off-white background (`#FAF6F0`), dark roasted brown (`#3E2723`), natural fresh green (`#2E6F40`), and wheat/golden accents (`#D4A347`). Blue themes are strictly prohibited.
+> - **Brand Story**: BPS Fresh Mills is positioned as a modern, trustworthy, quality-focused local chakki. No grandfather or family references are included anywhere.
+> - **Zero Mock / Fake Buttons**: Every single button, search bar, filter, status stepper, wishlist toggle, stock decrement, delivery calculation, coupon applier, and admin action is fully functional.
+> - **Dual-Mode Database Architecture**: To guarantee 100% out-of-the-box operation on any local machine (even if MongoDB is not pre-installed locally), the Node.js backend features a unified storage engine: standard MongoDB/Mongoose connection when `MONGO_URI` is provided, with an automatic persistent JSON file-backed document store fallback.
+> - **Payment Mode**: Cash on Delivery (COD) only right now, built with a clean modular payment handler to seamlessly plug in Razorpay/Stripe in the future without modifying core order models.
+
+---
+
+## Architecture & Tech Stack
+
+```mermaid
+graph TD
+    Client["Frontend (React + Vite + Modern CSS)"]
+    Admin["Admin & Delivery Agent Portals"]
+    Server["Express.js REST API Server"]
+    Auth["JWT Authentication & Bcrypt Hashing"]
+    Distance["15 KM Haversine Distance Engine"]
+    Stock["Atomic Stock & Inventory Controller"]
+    COD["COD Settlement & OTP Delivery Workflow"]
+    Storage["Database Adapter (MongoDB / Persistent JSON Store)"]
+
+    Client -->|HTTP/REST| Server
+    Admin -->|HTTP/REST with Role Check| Server
+    Server --> Auth
+    Server --> Distance
+    Server --> Stock
+    Server --> COD
+    Server --> Storage
+```
+
+### 1. Frontend (`frontend/`)
+- **Vite + React (JavaScript)**: Fast, modern, responsive client.
+- **Styling**: Vanilla CSS custom design system with CSS custom properties (Variables) for light mode and dark mode.
+- **Icons & Assets**: Custom clean SVG icons, high-quality generated images for chakki flour products and hero visuals.
+- **State Management & Persistence**: React Context API (`AuthContext`, `CartContext`, `WishlistContext`, `ThemeContext`) with `localStorage` synchronization.
+- **Routing**: Client-side navigation supporting Customer views (`/`, `/shop`, `/product/:id`, `/cart`, `/checkout`, `/order-success/:id`, `/orders`, `/wishlist`, `/account`, `/about`, `/contact`), Delivery Portal (`/delivery`), and Admin Panel (`/admin/*`).
+
+### 2. Backend (`backend/`)
+- **Runtime**: Node.js v24 + Express.js.
+- **Security**: `bcryptjs` password hashing, `jsonwebtoken` (JWT) authentication, rate limiting, role-based authorization (`admin`, `delivery`, `customer`), strict input sanitization.
+- **Distance Engine**: Accurate Haversine calculation measuring customer delivery coordinates against configurable shop location (enforcing the strict 15 KM boundary).
+- **Inventory Engine**: Real-time stock decrement on order placement, out-of-stock guard, low-stock alerts.
+- **COD & Cash Settlement Engine**: Delivery boy order assignment, OTP-based delivery confirmation, cash collection recording, cash deposit tracking, and discrepancy warnings.
+
+---
+
+## Key Feature Implementations
+
+### 1. 15 KM Service Radius Validation
+- Shop coordinates configured in Admin Settings (e.g. Latitude: 28.6139, Longitude: 77.2090, Radius: 15 KM).
+- Customer address form includes street address, area, PIN code, and coordinate picker / distance estimator.
+- Server rejects any order creation attempts beyond 15 KM with: *"Sorry, delivery is currently available within 15 KM only."*
+
+### 2. Dynamic Offers & Coupons
+- Admin creates coupons with code, discount percentage or flat amount, minimum order value, validity dates, active/inactive toggle.
+- Cart validates coupon dynamically and applies discount before checkout. Expired offers automatically deactivate.
+
+### 3. Inventory & Low-Stock Alerts
+- Each product tracks available stock (e.g., 20 bags).
+- Placing an order for 2 bags reduces stock to 18.
+- If stock hits 0: Product card and details show "Out of Stock", buttons are disabled, and "Notify Me When Available" appears.
+- If stock $\le$ `lowStockThreshold` (e.g., 5): Badge displays *"Only X items left!"*.
+
+### 4. Customer Flow & Verified Reviews
+- Signup (Name, Mobile, Email, Password, Address, PIN code).
+- Login via Mobile or Email.
+- My Orders with interactive status tracking:
+  `Order Placed` $\rightarrow$ `Confirmed` $\rightarrow$ `Preparing` $\rightarrow$ `Ready for Delivery` $\rightarrow$ `Out for Delivery` $\rightarrow$ `Delivered`.
+- Only verified purchasers of a product can submit a star rating, review text, and photo.
+- Return / Report Issue on delivered items (Damaged packaging, wrong product, quality issue, etc.) with food-safety policy compliance.
+
+### 5. Delivery Boy & COD Settlement Dashboard
+- Admin assigns orders to delivery agents.
+- Delivery Boy view shows assigned deliveries, address, customer phone, and exact amount to collect (e.g. ₹600).
+- Delivery agent enters delivery OTP or confirms cash collected to mark order delivered.
+- Admin COD Management tracks:
+  - Total COD Assigned
+  - Total COD Collected
+  - Total Cash Deposited
+  - Cash Difference Discrepancy Alert (e.g. *"Cash Difference: ₹850"*).
+
+### 6. Admin Panel (Secured)
+- Dashboard metrics: Today's Orders, Sales, Pending, Preparing, Out for Delivery, Delivered, Low Stock list, COD pending vs collected.
+- Interactive SVG/Canvas charts for sales trends and order breakdown.
+- Full CRUD for Products, Orders, Offers, Delivery Agents, Return Requests, and Store Settings.
+
+---
+
+## Proposed Project Structure
+
+```
+c:\Users\Dell\Downloads\BPS chakki\
+├── backend/
+│   ├── data/                 # Persistent local JSON data files (fallback database)
+│   ├── config/               # DB configuration & environment constants
+│   ├── middleware/           # auth, adminAuth, errorHandler
+│   ├── models/               # Schemas / repositories (Users, Products, Orders, etc.)
+│   ├── routes/               # API routes (auth, products, orders, cart, offers, admin, etc.)
+│   ├── controllers/          # Business logic controllers
+│   ├── utils/                # Distance calculator, seed generator, OTP helper
+│   ├── server.js             # Express app entry point
+│   ├── package.json
+│   └── .env.example
+├── frontend/
+│   ├── public/               # Favicon, manifest, static assets
+│   ├── src/
+│   │   ├── assets/           # Generated high-res chakki & flour visuals
+│   │   ├── components/       # Header, Footer, Navbar, ProductCard, CartDrawer, OrderTimeline, etc.
+│   │   ├── context/          # AuthContext, CartContext, WishlistContext, ThemeContext
+│   │   ├── pages/            # Home, Shop, ProductDetails, Cart, Checkout, OrderConfirmation, Account, About, Contact, Admin, Delivery
+│   │   ├── styles/           # index.css (Design tokens, warm wheat palette, dark mode variables)
+│   │   ├── utils/            # api client, helpers, formatters
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   ├── index.html
+│   ├── vite.config.js
+│   └── package.json
+└── README.md                 # Setup and run instructions
+```
+
+---
+
+## Verification Plan
+
+### Automated Verification
+- Run backend API test script verifying:
+  - User signup, login, JWT token generation.
+  - Product listing, search query, category filtering.
+  - Distance check (< 15 KM passes, > 15 KM blocked).
+  - Stock decrement on COD order creation.
+  - Coupon application logic.
+  - Admin authentication and protected routes.
+
+### Manual & Interactive Browser Verification (via Browser Subagent)
+1. **Homepage & Aesthetics**: Verify warm palette, responsive layout, dark/light theme switcher, hero buttons, and festive banner.
+2. **Shop & Filtering**: Test search, category tabs, price range, weight filters, and sorting.
+3. **Cart & 15 KM Validation**: Add items, test quantity controls, test address inside vs outside 15 KM radius.
+4. **COD Checkout**: Complete order as customer, verify unique Order ID (e.g. `#BPS1025`), view celebration screen.
+5. **Customer Orders & Tracking**: Track status timeline and test Report Issue flow.
+6. **Delivery Boy Flow**: Log into `/delivery`, verify assigned COD orders, confirm cash collection.
+7. **Admin Panel**: Log in as admin, check metrics & charts, update order status, inspect COD cash difference tracker, and verify inventory reduction.

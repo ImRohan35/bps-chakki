@@ -1,0 +1,40 @@
+[
+  {
+    "_id": "bps_1789226829340_mjsgu25",
+    "createdAt": "2026-09-11T12:00:00Z",
+    "updatedAt": "2026-09-12T15:49:28.963Z",
+    "productId": "bps_1789226829334_a9htwfb",
+    "customerName": "Pooja Sharma",
+    "customerPhone": "9899001122",
+    "rating": 5,
+    "comment": "Freshly ground wheat aroma is unmatched! Made super tender rotis. Truly authentic chakki flour.",
+    "verifiedPurchase": true,
+    "isVisible": true
+  },
+  {
+    "_id": "bps_1789226829377_qrjo0zk",
+    "createdAt": "2026-09-11T16:30:00Z",
+    "updatedAt": "2026-09-12T15:27:09.377Z",
+    "productId": "bps_1789226829334_a9htwfb",
+    "customerName": "Vikram Mehta",
+    "customerPhone": "9871122334",
+    "rating": 5,
+    "comment": "Miles ahead of packed supermarket brands. The fact that it is milled fresh on the stone chakki makes all the difference in taste and nutrition.",
+    "verifiedPurchase": true,
+    "isVisible": true
+  },
+  {
+    "_id": "bps_1789228290199_0e5pv7s",
+    "createdAt": "2026-09-12T15:51:30.199Z",
+    "updatedAt": "2026-09-12T15:51:30.199Z",
+    "productId": "bps_1789226829334_a9htwfb",
+    "userId": "bps_1789228288795_0moyz3y",
+    "customerName": "Test Customer",
+    "customerPhone": "9999085720",
+    "rating": 5,
+    "comment": "Freshly ground wheat aroma is unmatched! Made super tender rotis. Truly authentic chakki flour.",
+    "imageUrl": "",
+    "verifiedPurchase": true,
+    "isVisible": true
+  }
+]

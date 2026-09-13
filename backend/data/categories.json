@@ -1,0 +1,47 @@
+[
+  {
+    "_id": "bps_1789288296335_ax7cx41",
+    "createdAt": "2026-09-13T08:31:36.335Z",
+    "updatedAt": "2026-09-13T08:31:36.336Z",
+    "name": "Whole Wheat",
+    "description": "Stone-ground whole wheat atta varieties",
+    "sortOrder": 1,
+    "isActive": true
+  },
+  {
+    "_id": "bps_1789288296336_azyytx5",
+    "createdAt": "2026-09-13T08:31:36.336Z",
+    "updatedAt": "2026-09-13T08:31:36.336Z",
+    "name": "Specialty",
+    "description": "Multigrain, diabetic care, and specialty flours",
+    "sortOrder": 2,
+    "isActive": true
+  },
+  {
+    "_id": "bps_1789288296336_gtscscz",
+    "createdAt": "2026-09-13T08:31:36.336Z",
+    "updatedAt": "2026-09-13T08:31:36.336Z",
+    "name": "Gram & Pulses",
+    "description": "Pure besan, sattu and gram flour",
+    "sortOrder": 3,
+    "isActive": true
+  },
+  {
+    "_id": "bps_1789288296336_kvp240b",
+    "createdAt": "2026-09-13T08:31:36.336Z",
+    "updatedAt": "2026-09-13T08:31:36.336Z",
+    "name": "Millets",
+    "description": "Bajra, jowar, ragi and other millet flours",
+    "sortOrder": 4,
+    "isActive": true
+  },
+  {
+    "_id": "bps_1789288296336_thc6mlu",
+    "createdAt": "2026-09-13T08:31:36.336Z",
+    "updatedAt": "2026-09-13T08:31:36.336Z",
+    "name": "Rice Flour",
+    "description": "Fresh stone-ground rice flour varieties",
+    "sortOrder": 5,
+    "isActive": true
+  }
+]

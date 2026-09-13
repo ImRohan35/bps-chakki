@@ -1,0 +1,35 @@
+# ===== ENVIRONMENT & SECRETS =====
+.env
+.env.local
+.env.production
+.env.*.local
+
+# ===== NODE MODULES =====
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# ===== BUILD OUTPUT =====
+frontend/dist/
+frontend/build/
+
+# ===== LOGS =====
+*.log
+npm-debug.log*
+
+# ===== OS FILES =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== IDE FILES =====
+.vscode/
+.idea/
+
+# ===== DATABASE =====
+# Track initial database files so products, categories & settings are deployed
+!backend/data/*.json
+*.db
+
+# ===== UPLOADS (optional - uncomment if you don't want to push uploaded images) =====
+# backend/uploads/

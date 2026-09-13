@@ -1,0 +1,150 @@
+[
+  {
+    "_id": "bps_1789226829260_4wecfib",
+    "createdAt": "2026-09-12T15:27:09.260Z",
+    "updatedAt": "2026-09-13T08:37:48.189Z",
+    "name": "Amit Kumar",
+    "email": "amit.delivery@bpsfreshmills.com",
+    "mobile": "9812345678",
+    "password": "$2a$10$1ime3U7IM12ppREYt0a9Mu6kuAvLbrDAC.arHs8TVvHiE7cFNQ9fO",
+    "role": "delivery",
+    "status": "inactive",
+    "totalDelivered": 42,
+    "addresses": []
+  },
+  {
+    "_id": "bps_1789226829277_rsje8fx",
+    "createdAt": "2026-09-12T15:27:09.277Z",
+    "updatedAt": "2026-09-13T08:37:50.599Z",
+    "name": "Rahul Verma",
+    "email": "rahul.delivery@bpsfreshmills.com",
+    "mobile": "9823456789",
+    "password": "$2a$10$1ime3U7IM12ppREYt0a9Mu6kuAvLbrDAC.arHs8TVvHiE7cFNQ9fO",
+    "role": "delivery",
+    "status": "inactive",
+    "totalDelivered": 29,
+    "addresses": []
+  },
+  {
+    "_id": "bps_1789226829333_7adekwy",
+    "createdAt": "2026-09-12T15:27:09.333Z",
+    "updatedAt": "2026-09-12T15:27:09.333Z",
+    "name": "Pooja Sharma",
+    "email": "pooja.sharma@example.com",
+    "mobile": "9899001122",
+    "password": "$2a$10$ik1Rl59aZdEWXfP9l8qdGe1TICoUC5b6NetnJSinQ6PGuEeX/H44O",
+    "role": "customer",
+    "addresses": [
+      {
+        "id": "addr_1",
+        "name": "Pooja Sharma",
+        "mobile": "9899001122",
+        "houseFlat": "Flat 302, Palm Heights",
+        "streetArea": "Sector 15, Rohini",
+        "city": "Delhi",
+        "state": "Delhi",
+        "pincode": "110085",
+        "landmark": "Opposite Mother Dairy",
+        "isDefault": true,
+        "lat": 28.71,
+        "lon": 77.11,
+        "distanceKm": 2.1
+      }
+    ]
+  },
+  {
+    "_id": "bps_1789228167425_rvvinq8",
+    "createdAt": "2026-09-12T15:49:27.425Z",
+    "updatedAt": "2026-09-12T15:49:27.425Z",
+    "name": "Test Customer",
+    "mobile": "9999035107",
+    "email": "test.1789228164995@example.com",
+    "password": "$2a$10$PgLz4u6Cft.N3tyz5r9NyuPStx/ihaKi.h/mIaSAuLaoPd/QfWPvi",
+    "role": "customer",
+    "addresses": [
+      {
+        "id": "addr_1789228167424",
+        "name": "Test Customer",
+        "mobile": "9999035107",
+        "houseFlat": "Flat 101, Green View",
+        "streetArea": "Sector 14",
+        "city": "Delhi",
+        "state": "Delhi",
+        "pincode": "110085",
+        "landmark": "",
+        "isDefault": true,
+        "lat": 28.71,
+        "lon": 77.11,
+        "distanceKm": 1
+      }
+    ],
+    "wishlist": []
+  },
+  {
+    "_id": "bps_1789228215910_w0rrsf7",
+    "createdAt": "2026-09-12T15:50:15.910Z",
+    "updatedAt": "2026-09-12T15:50:15.910Z",
+    "name": "Test Customer",
+    "mobile": "9999038997",
+    "email": "test.1789228215664@example.com",
+    "password": "$2a$10$hR1.2RDmCHrnIqGryrl4GeVOqxSQmktSmqMldiqOP1S57h4VdFiUy",
+    "role": "customer",
+    "addresses": [
+      {
+        "id": "addr_1789228215907",
+        "name": "Test Customer",
+        "mobile": "9999038997",
+        "houseFlat": "Flat 101, Green View",
+        "streetArea": "Sector 14",
+        "city": "Delhi",
+        "state": "Delhi",
+        "pincode": "110085",
+        "landmark": "",
+        "isDefault": true,
+        "lat": 28.71,
+        "lon": 77.11,
+        "distanceKm": 1
+      }
+    ],
+    "wishlist": []
+  },
+  {
+    "_id": "bps_1789228288795_0moyz3y",
+    "createdAt": "2026-09-12T15:51:28.795Z",
+    "updatedAt": "2026-09-12T15:51:28.795Z",
+    "name": "Test Customer",
+    "mobile": "9999085720",
+    "email": "test.1789228288494@example.com",
+    "password": "$2a$10$qUt06VtRAbYMK8gvNvHFQupwv18t/K6USL7m2cFaNjhXxVFbml99e",
+    "role": "customer",
+    "addresses": [
+      {
+        "id": "addr_1789228288794",
+        "name": "Test Customer",
+        "mobile": "9999085720",
+        "houseFlat": "Flat 101, Green View",
+        "streetArea": "Sector 14",
+        "city": "Delhi",
+        "state": "Delhi",
+        "pincode": "110085",
+        "landmark": "",
+        "isDefault": true,
+        "lat": 28.71,
+        "lon": 77.11,
+        "distanceKm": 1
+      }
+    ],
+    "wishlist": []
+  },
+  {
+    "_id": "bps_1789229784758_gvvs24y",
+    "createdAt": "2026-09-12T16:16:24.632Z",
+    "updatedAt": "2026-09-13T11:41:57.584Z",
+    "name": "BPS Fresh Mills — Super Admin",
+    "email": "bpsfreshmill@gmail.com",
+    "mobile": "6386621332",
+    "password": "$2a$10$uRw/QyMimclYMZvQSX1pguDkxfqSRtYcTFNb0smzFJYK7wGrPWyF.",
+    "role": "super_admin",
+    "addresses": []
+  }
+]
