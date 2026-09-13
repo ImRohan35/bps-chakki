@@ -4,7 +4,7 @@
   "description": "BPS Fresh Mills - Pure Stone Chakki E-Commerce Platform",
   "private": true,
   "scripts": {
-    "postinstall": "npm install --prefix backend && npm install --prefix frontend",
+    "postinstall": "npm install --prefix backend && npm install --prefix frontend --include=dev",
     "build": "npm run build --prefix frontend",
     "start": "node backend/server.js",
     "dev:backend": "npm run dev --prefix backend",
