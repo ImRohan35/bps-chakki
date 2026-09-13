@@ -499,7 +499,68 @@ async function seedDatabase() {
   // Ensure first administrator account from environment variables exists
   await ensureAdminAccount();
 
+  // Ensure default delivery accounts exist with active status
+  await ensureDeliveryAccounts();
+
   console.log('✔ BPS Fresh Mills database seeding complete!');
+}
+
+async function ensureDeliveryAccounts() {
+  const defaultDeliveryPassword = process.env.DELIVERY_DEFAULT_PASSWORD || 'Delivery@123';
+  const deliveryHash = await bcrypt.hash(defaultDeliveryPassword, 10);
+
+  const agents = [
+    { name: 'Amit Kumar', mobile: '9812345678', email: 'amit.delivery@bpsfreshmills.com' },
+    { name: 'Rahul Verma', mobile: '9823456789', email: 'rahul.delivery@bpsfreshmills.com' }
+  ];
+
+  for (const agent of agents) {
+    let u = db.Users.findOne(x => x.mobile === agent.mobile || (x.email && x.email.toLowerCase() === agent.email));
+    if (!u) {
+      u = db.Users.insertOne({
+        name: agent.name,
+        email: agent.email,
+        mobile: agent.mobile,
+        password: deliveryHash,
+        role: 'delivery',
+        status: 'active',
+        totalDelivered: 25,
+        addresses: [],
+        createdAt: new Date().toISOString()
+      });
+    } else {
+      db.Users.updateById(u._id, {
+        name: agent.name,
+        email: agent.email,
+        mobile: agent.mobile,
+        password: deliveryHash,
+        role: 'delivery',
+        status: 'active'
+      });
+    }
+
+    // Also sync in DeliveryAgents table
+    let da = db.DeliveryAgents.findOne(x => x.mobile === agent.mobile || x.userId === u._id);
+    if (!da) {
+      db.DeliveryAgents.insertOne({
+        userId: u._id,
+        name: agent.name,
+        mobile: agent.mobile,
+        activeOrdersCount: 1,
+        totalCashCollected: 0,
+        totalCashDeposited: 0,
+        cashDifference: 0,
+        status: 'active',
+        createdAt: new Date().toISOString()
+      });
+    } else {
+      db.DeliveryAgents.updateById(da._id, {
+        status: 'active',
+        name: agent.name,
+        mobile: agent.mobile
+      });
+    }
+  }
 }
 
 async function ensureAdminAccount() {
@@ -550,4 +611,4 @@ if (require.main === module) {
   seedDatabase().then(() => process.exit(0));
 }
 
-module.exports = { seedDatabase, ensureAdminAccount };
+module.exports = { seedDatabase, ensureAdminAccount, ensureDeliveryAccounts };
