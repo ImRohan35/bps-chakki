@@ -1,9 +1,9 @@
 import React from 'react';
-import { Check, Clock, Package, Truck, CheckCircle2, XCircle } from 'lucide-react';
+import { Check, Clock, Package, Truck, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 
 const ORDER_STAGES = [
   { key: 'Order Placed', aliases: ['Order Placed'], label: 'Order Placed', icon: Clock },
-  { key: 'Confirmed', aliases: ['Confirmed'], label: 'Order Confirmed', icon: Check },
+  { key: 'Admin Confirmation', aliases: ['Confirmed', 'Admin Confirmation'], label: 'Admin Confirmation', icon: Check },
   { key: 'Processing', aliases: ['Processing', 'Preparing'], label: 'Processing', icon: Package },
   { key: 'Shipped', aliases: ['Shipped', 'Ready for Delivery'], label: 'Shipped', icon: Truck },
   { key: 'Out for Delivery', aliases: ['Out for Delivery'], label: 'Out for Delivery', icon: Truck },
@@ -12,28 +12,101 @@ const ORDER_STAGES = [
 
 export default function OrderTimeline({ currentStatus, timeline = [] }) {
   if (currentStatus === 'Cancelled') {
+    const placedEntry = timeline.find(t => t.status === 'Order Placed');
+    const cancelledEntry = timeline.find(t => t.status === 'Cancelled');
+
     return (
-      <div style={{ padding: '1.25rem', backgroundColor: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--danger-rust)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-        <XCircle size={24} />
-        <div>
-          <div style={{ fontWeight: 700, fontSize: '1rem' }}>Order Cancelled</div>
-          <div style={{ fontSize: '0.85rem' }}>This order has been cancelled and items have been returned to stock.</div>
+      <div>
+        <div className="timeline-container" style={{ marginBottom: '1.5rem' }}>
+          {/* Step 1: Order Placed */}
+          <div className="timeline-step completed">
+            <div className="timeline-step-dot">
+              <Clock size={11} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <span className="timeline-title" style={{ color: 'var(--nature-green)' }}>
+                  Order Placed
+                </span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--nature-green)', fontWeight: 700 }}>✓</span>
+              </div>
+              {placedEntry?.timestamp && (
+                <span className="timeline-date">
+                  {new Date(placedEntry.timestamp).toLocaleString('en-IN', {
+                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                  })}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Step 2: Order Cancelled */}
+          <div className="timeline-step completed">
+            <div className="timeline-step-dot" style={{ backgroundColor: '#DC2626', borderColor: '#DC2626' }}>
+              <XCircle size={11} color="#FFFFFF" />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <span className="timeline-title" style={{ color: '#DC2626', fontWeight: 800 }}>
+                  Order Cancelled
+                </span>
+                <span style={{ fontSize: '0.72rem', color: '#DC2626', fontWeight: 700 }}>✓</span>
+              </div>
+              {cancelledEntry?.timestamp && (
+                <span className="timeline-date">
+                  {new Date(cancelledEntry.timestamp).toLocaleString('en-IN', {
+                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                  })}
+                </span>
+              )}
+              {cancelledEntry?.note && (
+                <span style={{ fontSize: '0.82rem', color: '#DC2626', marginTop: '2px' }}>
+                  {cancelledEntry.note}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ padding: '1rem 1.25rem', backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 'var(--radius-md)', color: '#991B1B', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <AlertCircle size={20} />
+          <div style={{ fontSize: '0.9rem' }}>
+            This order has been cancelled and stock has been restored.
+          </div>
         </div>
       </div>
     );
   }
 
-  const currentIndex = ORDER_STAGES.findIndex(s => s.aliases.includes(currentStatus));
+  // Determine stage index
+  let currentIndex = 0;
+  if (currentStatus === 'Pending Admin Confirmation') {
+    currentIndex = 0; // Placed is completed, Admin Confirmation is active
+  } else {
+    const found = ORDER_STAGES.findIndex(s => s.aliases.includes(currentStatus));
+    currentIndex = found >= 0 ? found : 0;
+  }
+
+  const isPendingAdmin = currentStatus === 'Pending Admin Confirmation';
 
   return (
     <div className="timeline-container">
       {ORDER_STAGES.map((stage, idx) => {
-        const isCompleted = currentIndex >= idx;
-        const isActive = currentIndex === idx;
+        let isCompleted = false;
+        let isActive = false;
+
+        if (isPendingAdmin) {
+          if (idx === 0) isCompleted = true;
+          if (idx === 1) isActive = true;
+        } else {
+          isCompleted = currentIndex >= idx;
+          isActive = currentIndex === idx;
+        }
+
         const StageIcon = stage.icon;
 
         // Find timeline entry matching any stage alias
-        const historyEntry = timeline.find(t => stage.aliases.includes(t.status));
+        const historyEntry = timeline.find(t => stage.aliases.includes(t.status) || (idx === 0 && t.status === 'Order Placed'));
 
         return (
           <div
@@ -53,7 +126,9 @@ export default function OrderTimeline({ currentStatus, timeline = [] }) {
                   <span style={{ fontSize: '0.72rem', color: 'var(--nature-green)', fontWeight: 700 }}>✓</span>
                 )}
                 {isActive && (
-                  <span className="badge badge-gold" style={{ fontSize: '0.65rem' }}>In Progress</span>
+                  <span className="badge badge-gold" style={{ fontSize: '0.65rem' }}>
+                    {isPendingAdmin && stage.key === 'Admin Confirmation' ? 'Pending Admin Approval' : 'In Progress'}
+                  </span>
                 )}
               </div>
 

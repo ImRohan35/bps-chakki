@@ -20,7 +20,7 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-dig
 const fmtDateTime = (d) => d ? new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
 
 const STATUS_COLORS = {
-  'Order Placed': '#d97706', 'Confirmed': '#2E8B57', 'Processing': '#173D32', 'Preparing': '#173D32',
+  'Pending Admin Confirmation': '#d97706', 'Order Placed': '#d97706', 'Confirmed': '#2E8B57', 'Processing': '#173D32', 'Preparing': '#173D32',
   'Shipped': '#247346', 'Ready for Delivery': '#247346', 'Out for Delivery': '#ea580c',
   'Delivered': '#16a34a', 'Cancelled': '#dc2626', 'Return Requested': '#9333ea', 'Returned': '#6b7280'
 };
@@ -341,13 +341,43 @@ function OrdersSection() {
     else alert(r.message);
   };
 
+  const confirmOrder = async (orderId) => {
+    const r = await API(`/admin/orders/${orderId}/confirm`, { method: 'PUT' });
+    if (r.success) {
+      load();
+      if (selectedOrder?._id === orderId) {
+        setSelectedOrder(r.order || (prev => ({ ...prev, orderStatus: 'Confirmed' })));
+      }
+      alert('Order Confirmed! Customer has been notified via WhatsApp and Email.');
+    } else {
+      alert(r.message || 'Failed to confirm order');
+    }
+  };
+
+  const cancelOrder = async (orderId) => {
+    const reason = window.prompt('Enter cancellation reason (optional):') || 'Admin cancelled';
+    const r = await API(`/admin/orders/${orderId}/cancel`, {
+      method: 'PUT',
+      body: JSON.stringify({ reason })
+    });
+    if (r.success) {
+      load();
+      if (selectedOrder?._id === orderId) {
+        setSelectedOrder(r.order || (prev => ({ ...prev, orderStatus: 'Cancelled' })));
+      }
+      alert('Order Cancelled! Customer has been notified and stock has been restored.');
+    } else {
+      alert(r.message || 'Failed to cancel order');
+    }
+  };
+
   const assignAgent = async (orderId, agent) => {
     const r = await API(`/admin/orders/${orderId}/assign-delivery`, { method: 'PUT', body: JSON.stringify({ agentId: agent._id, agentName: agent.name, agentPhone: agent.mobile }) });
     if (r.success) { load(); alert('Delivery boy assigned!'); }
     else alert(r.message);
   };
 
-  const STATUSES = ['All', 'Order Placed', 'Confirmed', 'Processing', 'Preparing', 'Shipped', 'Ready for Delivery', 'Out for Delivery', 'Delivered', 'Cancelled'];
+  const STATUSES = ['All', 'Pending Admin Confirmation', 'Order Placed', 'Confirmed', 'Processing', 'Preparing', 'Shipped', 'Ready for Delivery', 'Out for Delivery', 'Delivered', 'Cancelled'];
 
   return (
     <div>
@@ -397,7 +427,27 @@ function OrdersSection() {
                   <td style={{ padding: '1rem' }}><StatusBadge status={o.orderStatus} /></td>
                   <td style={{ padding: '1rem', color: '#667085', whiteSpace: 'nowrap' }}>{fmtDate(o.createdAt)}</td>
                   <td style={{ padding: '1rem' }}>
-                    <button onClick={() => setSelectedOrder(o)} style={{ padding: '0.5rem 1rem', border: '1px solid #E2E8F0', borderRadius: '6px', background: '#FFFFFF', color: '#173D32', fontWeight: 700, cursor: 'pointer' }}>View</button>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <button onClick={() => setSelectedOrder(o)} style={{ padding: '0.45rem 0.85rem', border: '1px solid #E2E8F0', borderRadius: '6px', background: '#FFFFFF', color: '#173D32', fontWeight: 700, cursor: 'pointer' }}>View</button>
+                      {o.orderStatus === 'Pending Admin Confirmation' && (
+                        <>
+                          <button
+                            onClick={() => confirmOrder(o._id)}
+                            style={{ padding: '0.45rem 0.85rem', border: 'none', borderRadius: '6px', background: '#2E8B57', color: '#FFFFFF', fontWeight: 700, cursor: 'pointer' }}
+                            title="Confirm Order"
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            onClick={() => cancelOrder(o._id)}
+                            style={{ padding: '0.45rem 0.85rem', border: 'none', borderRadius: '6px', background: '#DC2626', color: '#FFFFFF', fontWeight: 700, cursor: 'pointer' }}
+                            title="Cancel Order"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -410,6 +460,29 @@ function OrdersSection() {
       {/* Order Detail Modal */}
       {selectedOrder && (
         <Modal title={`Order #${selectedOrder.orderId}`} onClose={() => setSelectedOrder(null)} maxWidth="700px">
+          {selectedOrder.orderStatus === 'Pending Admin Confirmation' && (
+            <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: '8px', padding: '1rem 1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <div style={{ fontWeight: 800, color: '#92400E', fontSize: '0.98rem' }}>⚠️ Action Required: Pending Admin Confirmation</div>
+                <div style={{ color: '#B45309', fontSize: '0.85rem', marginTop: '2px' }}>Review the customer and items details before confirming or cancelling this order.</div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.6rem' }}>
+                <button
+                  onClick={() => confirmOrder(selectedOrder._id)}
+                  style={{ padding: '0.6rem 1.2rem', backgroundColor: '#2E8B57', color: '#FFFFFF', border: 'none', borderRadius: '6px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Check size={16} /> Confirm Order
+                </button>
+                <button
+                  onClick={() => cancelOrder(selectedOrder._id)}
+                  style={{ padding: '0.6rem 1.2rem', backgroundColor: '#DC2626', color: '#FFFFFF', border: 'none', borderRadius: '6px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <X size={16} /> Cancel Order
+                </button>
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem', background: '#F8FAFC', padding: '1.5rem', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
             <div>
               <div style={{ fontWeight: 700, marginBottom: '0.5rem', color: '#667085', textTransform: 'uppercase', fontSize: '0.85rem', letterSpacing: '0.05em' }}>Customer Info</div>
@@ -588,7 +661,7 @@ function OrdersSection() {
             <div style={{ flex: 1 }}>
               <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.5rem', color: '#667085', fontSize: '0.9rem' }}>Update Order Status</label>
               <select style={{ width: '100%', padding: '0.8rem', border: '1px solid #E5E7EB', borderRadius: '8px', outline: 'none', background: '#FFFFFF', color: '#173D32', fontWeight: 700 }} value={selectedOrder.orderStatus} onChange={e => { changeStatus(selectedOrder._id, e.target.value); setSelectedOrder(p => ({ ...p, orderStatus: e.target.value })); }}>
-                {['Order Placed','Confirmed','Processing','Preparing','Shipped','Ready for Delivery','Out for Delivery','Delivered','Cancelled','Return Requested','Returned'].map(s => <option key={s}>{s}</option>)}
+                {['Pending Admin Confirmation','Order Placed','Confirmed','Processing','Preparing','Shipped','Ready for Delivery','Out for Delivery','Delivered','Cancelled','Return Requested','Returned'].map(s => <option key={s}>{s}</option>)}
               </select>
             </div>
           </div>

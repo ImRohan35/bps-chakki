@@ -1,7 +1,11 @@
 const express = require('express');
 const db = require('../config/db');
 const { authenticate, adminOnly, logAdminAction } = require('../middleware/auth');
-const { sendOrderStatusUpdateNotifications } = require('../services/notificationService');
+const {
+  sendOrderConfirmationNotifications,
+  sendOrderCancelledNotifications,
+  sendOrderStatusUpdateNotifications
+} = require('../services/notificationService');
 const path = require('path');
 const fs = require('fs');
 
@@ -162,7 +166,7 @@ router.put('/orders/:id/status', (req, res) => {
     const { status, note } = req.body;
     const order = db.Orders.findOne(o => o._id === id || o.orderId === id);
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
-    const validStatuses = ['Order Placed','Confirmed','Processing','Preparing','Shipped','Ready for Delivery','Out for Delivery','Delivered','Cancelled','Return Requested','Returned'];
+    const validStatuses = ['Pending Admin Confirmation','Order Placed','Confirmed','Processing','Preparing','Shipped','Ready for Delivery','Out for Delivery','Delivered','Cancelled','Return Requested','Returned'];
     if (!validStatuses.includes(status)) return res.status(400).json({ success: false, message: 'Invalid status' });
     if (status === 'Cancelled' && order.orderStatus !== 'Cancelled') {
       for (const item of order.items) {
@@ -177,13 +181,87 @@ router.put('/orders/:id/status', (req, res) => {
     const updated = db.Orders.updateById(order._id, updates);
     logAdminAction(req.user, 'ORDER_STATUS_CHANGED', { orderId: order.orderId, from: order.orderStatus, to: status });
 
-    // Send automated WhatsApp + Email notifications for status change asynchronously
-    sendOrderStatusUpdateNotifications(updated, status).catch(err => {
-      console.error('[BPS Notification] Order status notification error:', err);
-    });
+    // Send automated WhatsApp + Email notifications depending on action
+    if (status === 'Confirmed') {
+      sendOrderConfirmationNotifications(updated).catch(err => {
+        console.error('[BPS Notification] Order confirmation notification error:', err);
+      });
+    } else if (status === 'Cancelled') {
+      sendOrderCancelledNotifications(updated, note).catch(err => {
+        console.error('[BPS Notification] Order cancellation notification error:', err);
+      });
+    } else {
+      sendOrderStatusUpdateNotifications(updated, status).catch(err => {
+        console.error('[BPS Notification] Order status notification error:', err);
+      });
+    }
 
     res.json({ success: true, message: `Order status updated to ${status}`, order: updated });
   } catch (err) { res.status(500).json({ success: false, message: 'Failed to update order status' }); }
+});
+
+// Direct Confirm Order Action
+router.put('/orders/:id/confirm', (req, res) => {
+  try {
+    const { id } = req.params;
+    const order = db.Orders.findOne(o => o._id === id || o.orderId === id);
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    
+    const timeline = order.statusTimeline || [];
+    timeline.push({ status: 'Confirmed', timestamp: new Date().toISOString(), note: 'Order reviewed and confirmed by BPS Store Admin.' });
+    
+    const updated = db.Orders.updateById(order._id, {
+      orderStatus: 'Confirmed',
+      statusTimeline: timeline
+    });
+
+    logAdminAction(req.user, 'ORDER_CONFIRMED', { orderId: order.orderId });
+
+    // Automatically send customer confirmation notification now that admin approved
+    sendOrderConfirmationNotifications(updated).catch(err => {
+      console.error('[BPS Notification] Order confirmation notification error:', err);
+    });
+
+    res.json({ success: true, message: 'Order Confirmed! Customer has been notified.', order: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to confirm order' });
+  }
+});
+
+// Direct Cancel Order Action
+router.put('/orders/:id/cancel', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body || {};
+    const order = db.Orders.findOne(o => o._id === id || o.orderId === id);
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    if (order.orderStatus !== 'Cancelled') {
+      for (const item of order.items) {
+        const product = db.Products.findById(item.productId);
+        if (product) db.Products.updateById(product._id, { stock: product.stock + (Number(item.quantity) || 1) });
+      }
+    }
+
+    const timeline = order.statusTimeline || [];
+    timeline.push({ status: 'Cancelled', timestamp: new Date().toISOString(), note: reason || 'Cancelled by BPS Store Admin.' });
+
+    const updated = db.Orders.updateById(order._id, {
+      orderStatus: 'Cancelled',
+      statusTimeline: timeline
+    });
+
+    logAdminAction(req.user, 'ORDER_CANCELLED', { orderId: order.orderId, reason });
+
+    // Automatically send customer cancellation notification
+    sendOrderCancelledNotifications(updated, reason).catch(err => {
+      console.error('[BPS Notification] Order cancellation notification error:', err);
+    });
+
+    res.json({ success: true, message: 'Order Cancelled. Customer notified and stock restored.', order: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to cancel order' });
+  }
 });
 
 router.put('/orders/:id/tracking-details', (req, res) => {

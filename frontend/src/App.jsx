@@ -39,8 +39,18 @@ export default function App() {
     return searchParams.get('id') || searchParams.get('orderId') || null;
   };
 
+  const getInitialProductId = () => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const prodParam = searchParams.get('product') || searchParams.get('productId');
+    if (prodParam) return prodParam;
+    if (searchParams.get('id') && !window.location.pathname.includes('/tracking')) {
+      return searchParams.get('id');
+    }
+    return typeof window !== 'undefined' ? localStorage.getItem('bps_selected_product_id') : null;
+  };
+
   const [route, setRoute] = useState(getInitialRoute);
-  const [selectedProductId, setSelectedProductId] = useState(null);
+  const [selectedProductId, setSelectedProductId] = useState(getInitialProductId);
   const [currentOrder, setCurrentOrder] = useState(null);
   const [trackingOrderId, setTrackingOrderId] = useState(getInitialTrackingId);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -66,6 +76,10 @@ export default function App() {
     } else if (clean.startsWith('tracking')) {
       resolved = 'tracking';
       window.history.pushState(null, '', `/${clean}`);
+    } else if (clean === 'product') {
+      resolved = 'product';
+      const id = selectedProductId || (typeof window !== 'undefined' ? localStorage.getItem('bps_selected_product_id') : '');
+      window.history.pushState(null, '', id ? `/product?id=${encodeURIComponent(id)}` : '/product');
     } else {
       window.history.pushState(null, '', `/${clean}`);
     }
@@ -81,18 +95,25 @@ export default function App() {
       if (idFromUrl) {
         setTrackingOrderId(idFromUrl);
       }
+      const prodParam = searchParams.get('product') || searchParams.get('productId') || (searchParams.get('id') && !window.location.pathname.includes('/tracking') ? searchParams.get('id') : null);
+      if (prodParam) {
+        setSelectedProductId(prodParam);
+      }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   const handleSelectProduct = (product) => {
+    if (!product) return;
     const id = product._id || product.slug || product.id;
     setSelectedProductId(id);
     if (typeof window !== 'undefined') {
       localStorage.setItem('bps_selected_product_id', id);
     }
-    navigate('product');
+    window.history.pushState(null, '', `/product?id=${encodeURIComponent(id)}`);
+    setRoute('product');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleOrderPlaced = (order) => {

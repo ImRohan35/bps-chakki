@@ -2,7 +2,7 @@ const express = require('express');
 const db = require('../config/db');
 const { authenticate, optionalAuthenticate } = require('../middleware/auth');
 const { validateDeliveryArea, calculateDistanceKm } = require('../utils/distance');
-const { sendOrderConfirmationNotifications } = require('../services/notificationService');
+const { sendAdminNewOrderEmail, sendOrderConfirmationNotifications } = require('../services/notificationService');
 
 const router = express.Router();
 
@@ -163,7 +163,7 @@ router.post('/', authenticate, (req, res) => {
       totalAmount,
       paymentMethod: 'Cash on Delivery',
       paymentStatus: 'COD Pending',
-      orderStatus: 'Order Placed',
+      orderStatus: 'Pending Admin Confirmation',
       expectedDeliveryDate,
       trackingNumber: '',
       deliveryOtp,
@@ -171,25 +171,31 @@ router.post('/', authenticate, (req, res) => {
       assignedDeliveryBoy: null,
       notifications: {
         whatsapp: { lastStatus: 'pending', lastSentAt: null },
-        email: { lastStatus: 'pending', lastSentAt: null }
+        email: { lastStatus: 'pending', lastSentAt: null },
+        adminEmail: { lastStatus: 'pending', lastSentAt: null }
       },
       statusTimeline: [
         {
           status: 'Order Placed',
           timestamp: new Date().toISOString(),
-          note: 'Order successfully received. Preparing fresh chakki batch.'
+          note: 'Order placed by customer.'
+        },
+        {
+          status: 'Pending Admin Confirmation',
+          timestamp: new Date().toISOString(),
+          note: 'Order received. Awaiting review and confirmation by BPS Store Admin.'
         }
       ]
     });
 
-    // 9. Asynchronously send WhatsApp & Email confirmations without delaying response
-    sendOrderConfirmationNotifications(newOrder).catch(err => {
-      console.error('[BPS Notification] Order confirmation dispatch failed:', err);
+    // 9. Send Email notification immediately to ADMIN (Customer confirmation sent only after admin confirms)
+    sendAdminNewOrderEmail(newOrder).catch(err => {
+      console.error('[BPS Notification] Admin new order email dispatch failed:', err);
     });
 
     return res.status(201).json({
       success: true,
-      message: 'Order Placed Successfully! 🎉',
+      message: 'Order Placed! Awaiting Admin Confirmation.',
       order: newOrder
     });
   } catch (err) {

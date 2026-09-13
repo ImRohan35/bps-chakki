@@ -146,7 +146,7 @@ export default function OrderTracking({ orderId, navigate, onReportIssue }) {
     }
   };
 
-  const canCancel = ['Order Placed', 'Confirmed'].includes(order.orderStatus);
+  const canCancel = ['Order Placed', 'Pending Admin Confirmation', 'Confirmed'].includes(order.orderStatus);
   const isDelivered = order.orderStatus === 'Delivered';
 
   return (
