@@ -734,7 +734,8 @@ function ProductsSection() {
   const [form, setForm] = useState({ name: '', category: '', shortDescription: '', description: '', ingredients: '', price: '', originalPrice: '', weight: '5 KG', stock: 25, lowStockThreshold: 5, isFeatured: false, isBestSeller: false, isNew: false, isActive: true, image: '' });
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const fileRef = useRef();
+  const galleryFileRef = useRef();
+  const cameraFileRef = useRef();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -909,30 +910,73 @@ function ProductsSection() {
           
           <div style={{ marginTop: '1rem' }}>
             <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.5rem', color: '#667085', fontSize: '0.9rem' }}>
-              Product Image (Phone Camera / Gallery or URL)
+              Product Image (Gallery, Camera or Web URL)
             </label>
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.75rem' }}>
               <input
-                style={{ flex: 1, minWidth: '220px', padding: '0.8rem', border: '1px solid #E5E7EB', borderRadius: '8px', outline: 'none' }}
+                style={{ flex: 1, padding: '0.8rem', border: '1px solid #E5E7EB', borderRadius: '8px', outline: 'none' }}
                 value={form.image}
                 onChange={e => setForm(f => ({ ...f, image: e.target.value }))}
-                placeholder="Paste image URL or upload from device"
+                placeholder="Paste image URL or choose from gallery/camera below"
               />
-              <input
-                type="file"
-                ref={fileRef}
-                accept="image/*"
-                capture="environment"
-                style={{ display: 'none' }}
-                onChange={e => {
-                  if (e.target.files && e.target.files[0]) {
-                    handleImageUpload(e.target.files[0]);
-                  }
-                }}
-              />
+            </div>
+
+            {/* Hidden File Inputs */}
+            {/* 1. Gallery Input: NO capture attribute to trigger mobile Photos / Gallery picker */}
+            <input
+              type="file"
+              ref={galleryFileRef}
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={e => {
+                if (e.target.files && e.target.files[0]) {
+                  handleImageUpload(e.target.files[0]);
+                  e.target.value = '';
+                }
+              }}
+            />
+
+            {/* 2. Camera Input: capture="environment" to directly open camera */}
+            <input
+              type="file"
+              ref={cameraFileRef}
+              accept="image/*"
+              capture="environment"
+              style={{ display: 'none' }}
+              onChange={e => {
+                if (e.target.files && e.target.files[0]) {
+                  handleImageUpload(e.target.files[0]);
+                  e.target.value = '';
+                }
+              }}
+            />
+
+            {/* Action Buttons: Explicit Gallery and Camera Buttons */}
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
               <button
                 type="button"
-                onClick={() => fileRef.current?.click()}
+                onClick={() => galleryFileRef.current?.click()}
+                disabled={uploadingImage}
+                style={{
+                  padding: '0.75rem 1.25rem',
+                  background: '#173D32',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 700,
+                  fontSize: '0.88rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Upload size={16} /> {uploadingImage ? 'Uploading…' : '📁 Upload from Gallery'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => cameraFileRef.current?.click()}
                 disabled={uploadingImage}
                 style={{
                   padding: '0.75rem 1.25rem',
@@ -945,26 +989,27 @@ function ProductsSection() {
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  whiteSpace: 'nowrap'
+                  gap: '6px'
                 }}
               >
-                <Camera size={16} /> {uploadingImage ? 'Uploading…' : '📷 Upload Photo / Camera'}
+                <Camera size={16} /> {uploadingImage ? 'Opening Camera…' : '📸 Take Photo (Camera)'}
               </button>
             </div>
+
             {form.image && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '12px', background: '#F8FAFC', padding: '10px 14px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
                 <img
                   src={form.image}
                   alt="Preview"
-                  style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: '8px', border: '2px solid #2E8B57' }}
+                  style={{ width: 68, height: 68, objectFit: 'cover', borderRadius: '8px', border: '2px solid #2E8B57' }}
                 />
                 <div>
-                  <div style={{ fontSize: '0.8rem', color: '#16a34a', fontWeight: 700 }}>✔ Image Selected & Ready</div>
+                  <div style={{ fontSize: '0.85rem', color: '#16a34a', fontWeight: 800 }}>✔ Image Selected & Ready</div>
+                  <div style={{ fontSize: '0.75rem', color: '#667085', wordBreak: 'break-all', maxWidth: '300px' }}>{form.image}</div>
                   <button
                     type="button"
                     onClick={() => setForm(f => ({ ...f, image: '' }))}
-                    style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '0.78rem', cursor: 'pointer', padding: '2px 0', textDecoration: 'underline' }}
+                    style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '0.8rem', cursor: 'pointer', padding: '2px 0', textDecoration: 'underline', fontWeight: 600, marginTop: '2px' }}
                   >
                     Remove Image
                   </button>
@@ -1009,6 +1054,32 @@ function CategoriesSection() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: '', description: '', image: '', isActive: true, sortOrder: 0 });
   const [saving, setSaving] = useState(false);
+  const [uploadingCatImage, setUploadingCatImage] = useState(false);
+  const catGalleryRef = useRef();
+
+  const handleCatImageUpload = async (file) => {
+    if (!file) return;
+    setUploadingCatImage(true);
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const token = localStorage.getItem('bps_token');
+      const apiBase = (import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '');
+      const uploadUrl = `${apiBase}/admin/upload`;
+      const r = await fetch(uploadUrl, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
+      const data = await r.json();
+      if (data.success) {
+        const serverOrigin = apiBase.startsWith('http') ? apiBase.replace(/\/api$/, '') : '';
+        setForm(f => ({ ...f, image: `${serverOrigin}${data.url}` }));
+      } else {
+        alert('Upload failed: ' + (data.message || 'Error'));
+      }
+    } catch (err) {
+      alert('Upload error: ' + err.message);
+    } finally {
+      setUploadingCatImage(false);
+    }
+  };
 
   const load = useCallback(() => {
     setLoading(true);
@@ -1274,8 +1345,48 @@ function CategoriesSection() {
           <FieldRow label="Description">
             <textarea style={textareaStyle} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Brief category summary" />
           </FieldRow>
-          <FieldRow label="Image URL">
-            <input style={inputStyle} value={form.image} onChange={e => setForm(f => ({ ...f, image: e.target.value }))} placeholder="https://..." />
+          <FieldRow label="Category Image (Gallery or URL)">
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <input style={inputStyle} value={form.image} onChange={e => setForm(f => ({ ...f, image: e.target.value }))} placeholder="Paste image URL or choose below" />
+            </div>
+            <input
+              type="file"
+              ref={catGalleryRef}
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={e => {
+                if (e.target.files && e.target.files[0]) {
+                  handleCatImageUpload(e.target.files[0]);
+                  e.target.value = '';
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => catGalleryRef.current?.click()}
+              disabled={uploadingCatImage}
+              style={{
+                padding: '0.65rem 1.15rem',
+                background: '#173D32',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: 700,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <Upload size={15} /> {uploadingCatImage ? 'Uploading…' : '📁 Upload from Gallery'}
+            </button>
+            {form.image && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '8px' }}>
+                <img src={form.image} alt="Preview" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: '6px', border: '2px solid #2E8B57' }} />
+                <button type="button" onClick={() => setForm(f => ({ ...f, image: '' }))} style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '0.78rem', cursor: 'pointer', textDecoration: 'underline' }}>Remove Image</button>
+              </div>
+            )}
           </FieldRow>
           <FieldRow label="Sort Order">
             <input style={inputStyle} type="number" value={form.sortOrder} onChange={e => setForm(f => ({ ...f, sortOrder: Number(e.target.value) }))} />
