@@ -26,9 +26,9 @@ desktop.ini
 .vscode/
 .idea/
 
-# ===== DATABASE =====
-# Track initial database files so products, categories & settings are deployed
-!backend/data/*.json
+# ===== DATABASE & SENSITIVE DATA =====
+backend/data/
+backend/data/*.json
 *.db
 
 # ===== UPLOADS (optional - uncomment if you don't want to push uploaded images) =====

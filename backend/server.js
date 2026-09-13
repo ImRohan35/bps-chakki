@@ -14,13 +14,13 @@ const deliveryRoutes = require('./routes/deliveryRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const publicRoutes = require('./routes/publicRoutes');
 
-const { ensureAdminAccount } = require('./utils/seed');
+const { ensureAdminAccount, seedDatabase } = require('./utils/seed');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Auto-initialize administrator account from environment variables securely
-ensureAdminAccount().catch(err => console.error('Failed to initialize admin user:', err));
+// Auto-initialize clean database and administrator account securely from environment variables
+seedDatabase().catch(err => console.error('Failed to initialize database:', err));
 
 // Middlewares
 app.use(cors({ origin: true, credentials: true }));
