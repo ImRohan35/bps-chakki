@@ -87,7 +87,11 @@ export default function App() {
   }, []);
 
   const handleSelectProduct = (product) => {
-    setSelectedProductId(product._id || product.slug);
+    const id = product._id || product.slug || product.id;
+    setSelectedProductId(id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('bps_selected_product_id', id);
+    }
     navigate('product');
   };
 

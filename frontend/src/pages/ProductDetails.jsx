@@ -12,7 +12,8 @@ import {
   Check,
   ChevronLeft,
   AlertCircle,
-  MessageSquare
+  MessageSquare,
+  Sparkles
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -20,6 +21,7 @@ import { useAuth } from '../context/AuthContext';
 import { fetchApi } from '../utils/api';
 
 export default function ProductDetails({ productId, navigate, onNotifyMe }) {
+  const activeProductId = productId || (typeof window !== 'undefined' ? localStorage.getItem('bps_selected_product_id') : null);
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedWeight, setSelectedWeight] = useState('');
@@ -38,9 +40,12 @@ export default function ProductDetails({ productId, navigate, onNotifyMe }) {
   const { isAuthenticated, user } = useAuth();
 
   useEffect(() => {
-    if (!productId) return;
+    if (!activeProductId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
-    fetchApi(`/products/${productId}`)
+    fetchApi(`/products/${activeProductId}`)
       .then(res => {
         if (res.success && res.product) {
           setProduct(res.product);
@@ -50,7 +55,7 @@ export default function ProductDetails({ productId, navigate, onNotifyMe }) {
       })
       .catch(err => console.error('Error loading product details:', err))
       .finally(() => setLoading(false));
-  }, [productId]);
+  }, [activeProductId]);
 
   if (loading) {
     return (
@@ -297,11 +302,20 @@ export default function ProductDetails({ productId, navigate, onNotifyMe }) {
 
             <button
               onClick={handleAddToCart}
-              style={{ flex: 1, padding: '0', height: '48px', backgroundColor: addedNotice ? '#1E6B3F' : '#2E8B57', color: '#FFFFFF', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '1.05rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(46, 139, 87, 0.25)', transition: 'all 0.2s ease' }}
+              style={{ flex: 1, padding: '0', height: '48px', backgroundColor: addedNotice ? '#1E6B3F' : '#2E8B57', color: '#FFFFFF', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '1rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(46, 139, 87, 0.25)', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
               onMouseEnter={e => { if (!addedNotice) e.currentTarget.style.backgroundColor='#247346'; }}
               onMouseLeave={e => { if (!addedNotice) e.currentTarget.style.backgroundColor='#2E8B57'; }}
             >
-              {addedNotice ? 'Added to Cart!' : 'Add to Cart'}
+              {addedNotice ? <><Check size={18} /> Added!</> : <><ShoppingBag size={18} /> Add to Cart</>}
+            </button>
+
+            <button
+              onClick={handleBuyNow}
+              style={{ flex: 1.2, padding: '0', height: '48px', backgroundColor: '#C9A44C', color: '#173D32', border: 'none', borderRadius: '8px', fontWeight: 900, fontSize: '1rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(201, 164, 76, 0.35)', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor='#B8913B'; }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor='#C9A44C'; }}
+            >
+              <Zap size={18} fill="#173D32" /> Order Now
             </button>
             
             <button
