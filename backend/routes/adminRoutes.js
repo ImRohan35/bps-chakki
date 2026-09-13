@@ -183,25 +183,32 @@ router.put('/orders/:id/status', (req, res) => {
 
     // Send automated WhatsApp + Email notifications depending on action
     if (status === 'Confirmed') {
-      sendOrderConfirmationNotifications(updated).catch(err => {
+      try {
+        await sendOrderConfirmationNotifications(updated);
+      } catch (err) {
         console.error('[BPS Notification] Order confirmation notification error:', err);
-      });
+      }
     } else if (status === 'Cancelled') {
-      sendOrderCancelledNotifications(updated, note).catch(err => {
+      try {
+        await sendOrderCancelledNotifications(updated, note);
+      } catch (err) {
         console.error('[BPS Notification] Order cancellation notification error:', err);
-      });
+      }
     } else {
-      sendOrderStatusUpdateNotifications(updated, status).catch(err => {
+      try {
+        await sendOrderStatusUpdateNotifications(updated, status);
+      } catch (err) {
         console.error('[BPS Notification] Order status notification error:', err);
-      });
+      }
     }
 
-    res.json({ success: true, message: `Order status updated to ${status}`, order: updated });
+    const finalOrder = db.Orders.findById(order._id) || updated;
+    res.json({ success: true, message: `Order status updated to ${status}`, order: finalOrder });
   } catch (err) { res.status(500).json({ success: false, message: 'Failed to update order status' }); }
 });
 
 // Direct Confirm Order Action
-router.put('/orders/:id/confirm', (req, res) => {
+router.put('/orders/:id/confirm', async (req, res) => {
   try {
     const { id } = req.params;
     const order = db.Orders.findOne(o => o._id === id || o.orderId === id);
@@ -218,18 +225,21 @@ router.put('/orders/:id/confirm', (req, res) => {
     logAdminAction(req.user, 'ORDER_CONFIRMED', { orderId: order.orderId });
 
     // Automatically send customer confirmation notification now that admin approved
-    sendOrderConfirmationNotifications(updated).catch(err => {
+    try {
+      await sendOrderConfirmationNotifications(updated);
+    } catch (err) {
       console.error('[BPS Notification] Order confirmation notification error:', err);
-    });
+    }
 
-    res.json({ success: true, message: 'Order Confirmed! Customer has been notified.', order: updated });
+    const finalOrder = db.Orders.findById(order._id) || updated;
+    res.json({ success: true, message: 'Order Confirmed! Customer has been notified.', order: finalOrder });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to confirm order' });
   }
 });
 
 // Direct Cancel Order Action
-router.put('/orders/:id/cancel', (req, res) => {
+router.put('/orders/:id/cancel', async (req, res) => {
   try {
     const { id } = req.params;
     const { reason } = req.body || {};
@@ -254,11 +264,14 @@ router.put('/orders/:id/cancel', (req, res) => {
     logAdminAction(req.user, 'ORDER_CANCELLED', { orderId: order.orderId, reason });
 
     // Automatically send customer cancellation notification
-    sendOrderCancelledNotifications(updated, reason).catch(err => {
+    try {
+      await sendOrderCancelledNotifications(updated, reason);
+    } catch (err) {
       console.error('[BPS Notification] Order cancellation notification error:', err);
-    });
+    }
 
-    res.json({ success: true, message: 'Order Cancelled. Customer notified and stock restored.', order: updated });
+    const finalOrder = db.Orders.findById(order._id) || updated;
+    res.json({ success: true, message: 'Order Cancelled. Customer notified and stock restored.', order: finalOrder });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to cancel order' });
   }
