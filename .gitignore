@@ -10,7 +10,6 @@ backend/node_modules/
 frontend/node_modules/
 
 # ===== BUILD OUTPUT =====
-frontend/dist/
 frontend/build/
 
 # ===== LOGS =====

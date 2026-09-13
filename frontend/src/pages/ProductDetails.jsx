@@ -40,17 +40,38 @@ export default function ProductDetails({ productId, navigate, onNotifyMe }) {
   const { isAuthenticated, user } = useAuth();
 
   useEffect(() => {
+    setLoading(true);
     if (!activeProductId) {
-      setLoading(false);
+      fetchApi('/products')
+        .then(res => {
+          if (res.success && res.products && res.products.length > 0) {
+            const first = res.products[0];
+            setProduct(first);
+            setSelectedWeight(first.weight || (first.weights && first.weights[0]?.weight) || '5 KG');
+            setSelectedImage(first.image || (first.images && first.images[0]) || '');
+          }
+        })
+        .catch(err => console.error('Error fallback loading product:', err))
+        .finally(() => setLoading(false));
       return;
     }
-    setLoading(true);
+
     fetchApi(`/products/${activeProductId}`)
       .then(res => {
         if (res.success && res.product) {
           setProduct(res.product);
           setSelectedWeight(res.product.weight || (res.product.weights && res.product.weights[0]?.weight) || '5 KG');
           setSelectedImage(res.product.image || (res.product.images && res.product.images[0]) || '');
+        } else {
+          // If specific ID fails, fallback to first product
+          return fetchApi('/products').then(fallbackRes => {
+            if (fallbackRes.success && fallbackRes.products && fallbackRes.products.length > 0) {
+              const first = fallbackRes.products[0];
+              setProduct(first);
+              setSelectedWeight(first.weight || (first.weights && first.weights[0]?.weight) || '5 KG');
+              setSelectedImage(first.image || (first.images && first.images[0]) || '');
+            }
+          });
         }
       })
       .catch(err => console.error('Error loading product details:', err))
