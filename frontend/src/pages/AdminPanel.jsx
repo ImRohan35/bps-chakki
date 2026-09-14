@@ -2113,6 +2113,7 @@ function DeliverySection() {
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
+  const [modalError, setModalError] = useState('');
   const [form, setForm] = useState({ name: '', mobile: '', email: '', password: '' });
   const [saving, setSaving] = useState(false);
   const [settleModal, setSettleModal] = useState(null);
@@ -2121,18 +2122,55 @@ function DeliverySection() {
   const [settlements, setSettlements] = useState([]);
   const [settleSearch, setSettleSearch] = useState('');
 
-  const load = () => {
-    setLoading(true);
-    API('/admin/delivery-agents').then(r => { if (r.success) setAgents(r.agents || []); }).finally(() => setLoading(false));
+  const load = (showSpinner = true) => {
+    if (showSpinner) setLoading(true);
+    API('/admin/delivery-agents').then(r => { if (r.success) setAgents(r.agents || []); }).finally(() => { if (showSpinner) setLoading(false); });
     API('/admin/cash-settlements').then(r => { if (r.success) setSettlements(r.settlements || []); });
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(true); }, []);
 
   const addAgent = async () => {
+    if (!form.name.trim() || !form.mobile.trim() || !form.password.trim()) {
+      setModalError('Please fill in Name, Mobile and Password.');
+      return;
+    }
+    const cleanPhone = form.mobile.replace(/\D/g, '').slice(-10);
+    if (cleanPhone.length < 10) {
+      setModalError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    if (form.password.length < 6) {
+      setModalError('Password must be at least 6 characters.');
+      return;
+    }
+
     setSaving(true);
-    const r = await API('/admin/delivery-agents', { method: 'POST', body: JSON.stringify(form) });
-    setSaving(false);
-    if (r.success) { setModal(false); load(); } else alert(r.message);
+    setModalError('');
+    try {
+      const r = await API('/admin/delivery-agents', {
+        method: 'POST',
+        body: JSON.stringify({ ...form, mobile: cleanPhone })
+      });
+      setSaving(false);
+      if (r.success) {
+        // Optimistic instant add so the card appears in 0ms!
+        if (r.agent) {
+          setAgents(prev => {
+            const exists = prev.some(a => a.mobile === r.agent.mobile || a._id === r.agent._id);
+            return exists ? prev : [r.agent, ...prev];
+          });
+        }
+        setModal(false);
+        setForm({ name: '', mobile: '', email: '', password: '' });
+        // Background sync without flashing loading screen
+        load(false);
+      } else {
+        setModalError(r.message || 'Failed to add delivery boy');
+      }
+    } catch (err) {
+      setSaving(false);
+      setModalError(err.message || 'Network error while adding delivery boy');
+    }
   };
 
   const toggleStatus = async (agent) => {
@@ -2166,7 +2204,7 @@ function DeliverySection() {
             Total: <strong>{agents.length}</strong> • Active: <strong style={{ color: '#16a34a' }}>{activeCount}</strong> • Inactive: <strong style={{ color: '#dc2626' }}>{inactiveCount}</strong>
           </div>
         </div>
-        <button onClick={() => { setForm({ name: '', mobile: '', email: '', password: '' }); setModal(true); }} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Add Delivery Boy</button>
+        <button onClick={() => { setForm({ name: '', mobile: '', email: '', password: '' }); setModalError(''); setModal(true); }} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Add Delivery Boy</button>
       </div>
       {loading ? <Loader /> : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
@@ -2262,13 +2300,28 @@ function DeliverySection() {
 
       {modal && (
         <Modal title="Add Delivery Boy" onClose={() => setModal(false)}>
-          <FieldRow label="Full Name" required><input style={inputStyle} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></FieldRow>
-          <FieldRow label="Mobile Number" required><input style={inputStyle} value={form.mobile} onChange={e => setForm(f => ({ ...f, mobile: e.target.value }))} /></FieldRow>
-          <FieldRow label="Email (optional)"><input style={inputStyle} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></FieldRow>
-          <FieldRow label="Password" required><input style={inputStyle} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="Min 8 characters" /></FieldRow>
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-            <button onClick={() => setModal(false)} className="btn btn-outline">Cancel</button>
-            <button onClick={addAgent} disabled={saving} className="btn btn-primary">{saving ? 'Adding…' : 'Add Delivery Boy'}</button>
+          {modalError && (
+            <div style={{ padding: '0.65rem 0.85rem', background: '#FDE8E6', color: '#C0392B', borderRadius: '8px', fontSize: '0.84rem', fontWeight: 600, marginBottom: '1rem', border: '1px solid rgba(192,57,43,0.2)' }}>
+              ⚠️ {modalError}
+            </div>
+          )}
+          <FieldRow label="Full Name" required>
+            <input style={inputStyle} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Ramesh Singh" />
+          </FieldRow>
+          <FieldRow label="Mobile Number (10 Digits)" required>
+            <input style={inputStyle} value={form.mobile} onChange={e => setForm(f => ({ ...f, mobile: e.target.value }))} placeholder="e.g. 9812345678" maxLength={10} />
+          </FieldRow>
+          <FieldRow label="Email (optional)">
+            <input style={inputStyle} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="e.g. ramesh@bpsfreshmills.com" />
+          </FieldRow>
+          <FieldRow label="Password (for Delivery Portal Login)" required>
+            <input style={inputStyle} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="Min 6 characters" />
+          </FieldRow>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.25rem' }}>
+            <button onClick={() => setModal(false)} className="btn btn-outline" disabled={saving}>Cancel</button>
+            <button onClick={addAgent} disabled={saving} className="btn btn-primary" style={{ minWidth: '130px' }}>
+              {saving ? 'Saving...' : 'Add Delivery Boy'}
+            </button>
           </div>
         </Modal>
       )}

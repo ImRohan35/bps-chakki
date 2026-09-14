@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../config/db');
+const bcrypt = require('bcryptjs');
 const { authenticate, adminOnly, logAdminAction } = require('../middleware/auth');
 const {
   sendOrderConfirmationNotifications,
@@ -778,15 +779,27 @@ router.post('/delivery-agents', async (req, res) => {
     const { name, mobile, password } = req.body;
     if (!name || !mobile || !password) return res.status(400).json({ success: false, message: 'Name, mobile and password are required' });
     const cleanMobile = mobile.trim().replace(/\D/g, '').slice(-10);
+    if (cleanMobile.length < 10) return res.status(400).json({ success: false, message: 'Please provide a valid 10-digit mobile number' });
     const existing = db.Users.findOne({ mobile: cleanMobile });
     if (existing) return res.status(400).json({ success: false, message: 'Mobile number already registered' });
-    const bcrypt = require('bcryptjs');
-    const hashed = await bcrypt.hash(password, 10);
-    const user = db.Users.insertOne({ name, mobile: cleanMobile, email: req.body.email || '', password: hashed, role: 'delivery', status: 'active', addresses: [] });
-    const agent = db.DeliveryAgents.insertOne({ userId: user._id, name, mobile: cleanMobile, status: 'active', totalCashCollected: 0, totalCashDeposited: 0, cashDifference: 0 });
-    logAdminAction(req.user, 'DELIVERY_AGENT_ADDED', { name, mobile: cleanMobile });
-    res.status(201).json({ success: true, message: 'Delivery agent added', agent });
-  } catch (err) { res.status(500).json({ success: false, message: 'Failed to add agent' }); }
+    const hashed = await bcrypt.hash(password, 8);
+    const user = db.Users.insertOne({ name: name.trim(), mobile: cleanMobile, email: req.body.email ? req.body.email.trim() : '', password: hashed, role: 'delivery', status: 'active', addresses: [] });
+    const agent = db.DeliveryAgents.insertOne({
+      userId: user._id,
+      name: name.trim(),
+      mobile: cleanMobile,
+      status: 'active',
+      totalAssigned: 0,
+      totalCashCollected: 0,
+      totalCashDeposited: 0,
+      cashDifference: 0
+    });
+    logAdminAction(req.user, 'DELIVERY_AGENT_ADDED', { name: name.trim(), mobile: cleanMobile });
+    res.status(201).json({ success: true, message: 'Delivery agent added successfully', agent });
+  } catch (err) {
+    console.error('Error adding delivery agent:', err);
+    res.status(500).json({ success: false, message: 'Failed to add delivery agent: ' + (err.message || '') });
+  }
 });
 
 router.put('/delivery-agents/:id', (req, res) => {
