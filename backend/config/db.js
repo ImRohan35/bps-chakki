@@ -201,7 +201,11 @@ const db = {
   AuditLogs: new JsonCollection('audit_logs'),
   StockHistory: new JsonCollection('stock_history'),
   Inquiries: new JsonCollection('inquiries'),
-  Notifications: new JsonCollection('notifications')
+  Notifications: new JsonCollection('notifications'),
+  Tickets: new JsonCollection('tickets'),
+  LoyaltyLedger: new JsonCollection('loyalty_ledger'),
+  WalletLedger: new JsonCollection('wallet_ledger'),
+  Replacements: new JsonCollection('replacements')
 };
 
 module.exports = db;

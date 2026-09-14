@@ -21,6 +21,8 @@ import { fetchApi } from '../utils/api';
 export default function Home({ navigate, onSelectProduct, onNotifyMe }) {
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [recentlyViewed, setRecentlyViewed] = useState([]);
+  const [buyAgainItems, setBuyAgainItems] = useState([]);
 
   useEffect(() => {
     fetchApi('/products/featured')
@@ -31,6 +33,33 @@ export default function Home({ navigate, onSelectProduct, onNotifyMe }) {
       })
       .catch(err => console.error('Error fetching featured:', err))
       .finally(() => setLoading(false));
+
+    const token = localStorage.getItem('bps_token');
+    if (token) {
+      fetchApi('/auth/recently-viewed')
+        .then(res => {
+          if (res.success && res.products && res.products.length > 0) {
+            setRecentlyViewed(res.products);
+          }
+        })
+        .catch(() => {});
+
+      fetchApi('/orders/my-orders')
+        .then(res => {
+          if (res.success && res.orders && res.orders.length > 0) {
+            const itemsMap = new Map();
+            res.orders.forEach(o => {
+              (o.items || []).forEach(it => {
+                if (!itemsMap.has(it.productId || it.name)) {
+                  itemsMap.set(it.productId || it.name, it);
+                }
+              });
+            });
+            setBuyAgainItems(Array.from(itemsMap.values()).slice(0, 4));
+          }
+        })
+        .catch(() => {});
+    }
   }, []);
 
   return (
@@ -191,6 +220,85 @@ export default function Home({ navigate, onSelectProduct, onNotifyMe }) {
           </div>
         )}
       </section>
+
+      {/* 3b. BUY AGAIN / QUICK REORDER SECTION (Feature 90) */}
+      {buyAgainItems.length > 0 && (
+        <section className="container">
+          <div style={{ backgroundColor: 'var(--wheat-light, #F9F6F0)', padding: '1.75rem 2rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div>
+                <span className="badge badge-gold" style={{ marginBottom: '0.25rem' }}>Your Kitchen Staples</span>
+                <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#173D32', margin: 0 }}>
+                  Buy Again / Quick Reorder
+                </h3>
+              </div>
+              <button onClick={() => navigate('orders')} className="btn btn-sm btn-outline">
+                View All Past Orders
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+              {buyAgainItems.map((item, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '1rem 1.25rem',
+                    border: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    boxShadow: 'var(--shadow-sm)'
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.98rem', color: 'var(--text-primary)' }}>
+                      {item.name}
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      {item.weight} {item.texture ? `• ${item.texture}` : ''}
+                    </div>
+                    <div style={{ fontWeight: 800, color: '#173D32', fontSize: '1.1rem', marginTop: '0.5rem' }}>
+                      ₹{item.price}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => navigate('shop')}
+                    className="btn btn-sm btn-primary"
+                    style={{ marginTop: '0.75rem', width: '100%' }}
+                  >
+                    <ShoppingBag size={14} /> Reorder Fresh
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 3c. RECENTLY VIEWED PRODUCTS (Feature 89) */}
+      {recentlyViewed.length > 0 && (
+        <section className="container">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+            <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#173D32', margin: 0 }}>
+              Recently Viewed Grains
+            </h3>
+          </div>
+          <div className="product-grid">
+            {recentlyViewed.slice(0, 4).map(prod => (
+              <ProductCard
+                key={prod._id}
+                product={prod}
+                onSelectProduct={onSelectProduct}
+                onBuyNow={() => navigate('checkout')}
+                onNotifyMe={onNotifyMe}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 4. 15 KM DELIVERY RADIUS SECTION */}
       <section className="container">

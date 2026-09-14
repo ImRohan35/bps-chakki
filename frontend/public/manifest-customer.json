@@ -1,12 +1,14 @@
 {
-  "name": "BPS Fresh Mills",
-  "short_name": "BPS Mills",
-  "description": "Freshly Milled Pure Stone Chakki Atta & Healthy Grains",
+  "name": "BPS Fresh Mills — Customer App",
+  "short_name": "BPS Customer",
+  "description": "Order Freshly Milled Pure Stone Chakki Atta & Healthy Grains directly to your doorstep",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#FAF6F0",
-  "theme_color": "#3C2A21",
+  "background_color": "#173D32",
+  "theme_color": "#173D32",
   "orientation": "portrait",
+  "categories": ["shopping", "food", "groceries"],
   "icons": [
     {
       "src": "/logo.png",

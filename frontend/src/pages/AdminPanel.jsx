@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 import NotificationBell from '../components/NotificationBell';
 import InvoiceModal from '../components/InvoiceModal';
+import InstallPwaButton from '../components/InstallPwaButton';
 import { fetchApi } from '../utils/api';
 
 const API = (path, opts) => fetchApi(path, opts);
@@ -124,13 +125,13 @@ function getSplinePath(points) {
 // ── Smooth Sales Overview Curve Chart (Reference Image 4) ────────
 function SalesOverviewChart({ data, height = 180 }) {
   const chartData = (data && data.length >= 3) ? data : [
-    { day: 'Mon', revenue: 1200 },
-    { day: 'Tue', revenue: 2600 },
-    { day: 'Wed', revenue: 1900 },
-    { day: 'Thu', revenue: 3400 },
-    { day: 'Fri', revenue: 2900 },
-    { day: 'Sat', revenue: 4800 },
-    { day: 'Sun', revenue: 5600 }
+    { day: 'Mon', revenue: 0 },
+    { day: 'Tue', revenue: 0 },
+    { day: 'Wed', revenue: 0 },
+    { day: 'Thu', revenue: 0 },
+    { day: 'Fri', revenue: 0 },
+    { day: 'Sat', revenue: 0 },
+    { day: 'Sun', revenue: 0 }
   ];
 
   const width = 600;
@@ -197,59 +198,260 @@ function SalesOverviewChart({ data, height = 180 }) {
 // ═══════════════════════════════════════════════════════════════
 
 // ── 1. DASHBOARD (Reference Image 4) ────────────────────────────
-function Dashboard({ navigate }) {
+function Dashboard({ navigate, setActiveTab }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+
   const load = useCallback(() => {
     setLoading(true);
     API('/admin/dashboard').then(r => { if (r.success) setData(r.stats); }).finally(() => setLoading(false));
   }, []);
-  useEffect(() => { load(); }, [load]);
 
-  if (loading) return <Loader />;
+  useEffect(() => {
+    load();
+    // Real-time SSE listener: silently refresh dashboard stats on any system event
+    let es;
+    try {
+      const apiBase = (import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '');
+      es = new EventSource(`${apiBase}/notifications/stream`);
+      es.onmessage = (e) => {
+        try {
+          const payload = JSON.parse(e.data);
+          if (payload && payload.type !== 'PING') {
+            load();
+          }
+        } catch (_) {}
+      };
+    } catch (_) {}
+    return () => { if (es) es.close(); };
+  }, [load]);
+
+  if (loading && !data) return <Loader />;
   if (!data) return <EmptyState message="Failed to load dashboard" />;
 
-  const todaySales = data.todaySales || data.todayRevenue || 12450;
-  const monthSales = data.totalSales || 245300;
-  const totalOrders = data.todayOrdersCount ? (data.todayOrdersCount + (data.pendingOrders || 0) + 140) : (data.totalOrdersCount || 150);
+  // 100% Real Database Numbers (Zero Fake Fallbacks)
+  const todaySales = data.todaySales || 0;
+  const thisWeekSales = data.thisWeekSales || 0;
+  const monthSales = data.monthlySales || 0;
+  const totalSales = data.totalSales || 0;
+  const totalOrders = data.totalOrders || 0;
+  const activeDelivery = data.activeDeliveryBoys || 0;
+  const totalDelivery = data.totalDeliveryBoys || 0;
+  const codCollected = data.cod?.codCollected || 0;
+  const codPending = data.cod?.codPending || 0;
+  const actionRequired = data.actionRequired || [];
 
   return (
     <div>
-      {/* Top Stat Cards (Overview Metrics) */}
+      {/* ── 1. MANAGEMENT BY EXCEPTION: ACTION REQUIRED CENTER ── */}
+      <div style={{ marginBottom: '2rem' }}>
+        {actionRequired.length === 0 ? (
+          <div style={{
+            background: 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)',
+            border: '1px solid #86EFAC',
+            borderRadius: '14px',
+            padding: '1.25rem 1.75rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1.25rem',
+            boxShadow: '0 2px 8px rgba(34,197,94,0.08)'
+          }}>
+            <div style={{
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              background: '#22C55E',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#FFFFFF',
+              fontSize: '1.5rem',
+              flexShrink: 0
+            }}>
+              🎉
+            </div>
+            <div>
+              <div style={{ fontWeight: 800, color: '#14532D', fontSize: '1.1rem' }}>
+                Everything is running smoothly!
+              </div>
+              <div style={{ color: '#166534', fontSize: '0.88rem', marginTop: '2px' }}>
+                No pending exceptions, out-of-stock items, unassigned orders, or unsettled delivery cash at this moment.
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            background: '#FFFFFF',
+            border: '1px solid #FECACA',
+            borderRadius: '14px',
+            padding: '1.5rem',
+            boxShadow: '0 4px 14px rgba(220,38,38,0.06)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{
+                  background: '#DC2626',
+                  color: '#FFFFFF',
+                  padding: '4px 10px',
+                  borderRadius: '999px',
+                  fontSize: '0.82rem',
+                  fontWeight: 800
+                }}>
+                  {actionRequired.length} {actionRequired.length === 1 ? 'Action' : 'Actions'} Required
+                </span>
+                <span style={{ fontSize: '1.05rem', fontWeight: 800, color: '#173D32' }}>
+                  Management by Exception Center
+                </span>
+              </div>
+              <span style={{ fontSize: '0.8rem', color: '#667085' }}>
+                System automatically detects items requiring administrative intervention
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+              {actionRequired.map(item => {
+                const isCrit = item.severity === 'critical';
+                const isWarn = item.severity === 'warning';
+                const borderColor = isCrit ? '#FCA5A5' : isWarn ? '#FCD34D' : '#BFDBFE';
+                const bgHeader = isCrit ? '#FEF2F2' : isWarn ? '#FFFBEB' : '#EFF6FF';
+                const badgeBg = isCrit ? '#DC2626' : isWarn ? '#D97706' : '#2563EB';
+
+                return (
+                  <div
+                    key={item.id}
+                    style={{
+                      border: `1.5px solid ${borderColor}`,
+                      borderRadius: '10px',
+                      overflow: 'hidden',
+                      background: '#FFFFFF',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
+                    }}
+                  >
+                    <div style={{ padding: '0.9rem 1.1rem', background: bgHeader, borderBottom: `1px solid ${borderColor}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#FFFFFF', background: badgeBg, padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
+                        {item.badge || item.type}
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: '#667085', fontWeight: 600 }}>Needs Review</span>
+                    </div>
+
+                    <div style={{ padding: '1rem 1.1rem', flex: 1 }}>
+                      <div style={{ fontWeight: 800, color: '#173D32', fontSize: '0.95rem', marginBottom: '0.35rem' }}>
+                        {item.title}
+                      </div>
+                      <div style={{ fontSize: '0.84rem', color: '#4B5563', lineHeight: 1.4 }}>
+                        {item.description}
+                      </div>
+                    </div>
+
+                    <div style={{ padding: '0.75rem 1.1rem', background: '#F8FAFC', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end' }}>
+                      <button
+                        onClick={() => {
+                          const tabTarget = item.targetTab === 'delivery-boys' ? 'delivery' : item.targetTab;
+                          if (setActiveTab) setActiveTab(tabTarget);
+                        }}
+                        style={{
+                          padding: '0.45rem 0.95rem',
+                          borderRadius: '6px',
+                          border: 'none',
+                          background: isCrit ? '#DC2626' : '#2E8B57',
+                          color: '#FFFFFF',
+                          fontWeight: 700,
+                          fontSize: '0.82rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        {item.actionLabel || 'Take Action'} →
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── 2. BUSINESS HEALTH OVERVIEW METRICS (100% REAL) ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
+        {/* Today's Sales */}
         <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
           <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#2E8B57', marginBottom: '0.35rem' }}>{fmt(todaySales)}</div>
-          <div style={{ fontSize: '0.9rem', color: '#667085', fontWeight: 600 }}>Today's Sales</div>
+          <div style={{ fontSize: '0.9rem', color: '#667085', fontWeight: 600 }}>Today's Real Sales</div>
+          <div style={{ fontSize: '0.75rem', color: '#9CA3AF', marginTop: '0.3rem' }}>This Week: {fmt(thisWeekSales)}</div>
         </div>
 
+        {/* Monthly Sales */}
         <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
           <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#173D32', marginBottom: '0.35rem' }}>{fmt(monthSales)}</div>
-          <div style={{ fontSize: '0.9rem', color: '#667085', fontWeight: 600 }}>This Month</div>
+          <div style={{ fontSize: '0.9rem', color: '#667085', fontWeight: 600 }}>This Month's Real Sales</div>
+          <div style={{ fontSize: '0.75rem', color: '#9CA3AF', marginTop: '0.3rem' }}>All Time: {fmt(totalSales)}</div>
         </div>
 
+        {/* Real Profit or Missing Cost Flag */}
+        {data.hasMissingCostData || data.realProfit === null ? (
+          <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <AlertCircle size={15} /> Real Profit Status
+              </div>
+              <div style={{ fontSize: '0.9rem', color: '#92400E', fontWeight: 700, lineHeight: 1.3 }}>
+                Cost data required to calculate profit
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#B45309', marginTop: '0.3rem' }}>
+                Add cost price on products to unlock accurate gross profit.
+              </div>
+            </div>
+            <button
+              onClick={() => setActiveTab && setActiveTab('products')}
+              style={{ marginTop: '0.8rem', padding: '0.4rem 0.8rem', background: '#D97706', color: '#FFFFFF', border: 'none', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' }}
+            >
+              Add Cost Prices →
+            </button>
+          </div>
+        ) : (
+          <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+            <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#16a34a', marginBottom: '0.35rem' }}>{fmt(data.realProfit)}</div>
+            <div style={{ fontSize: '0.9rem', color: '#667085', fontWeight: 600 }}>Real Gross Profit</div>
+            <div style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: 700, marginTop: '0.3rem' }}>
+              Margin: {data.profitMarginPercent}%
+            </div>
+          </div>
+        )}
+
+        {/* Total Orders & COD Status */}
         <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
           <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#173D32', marginBottom: '0.35rem' }}>{totalOrders}</div>
           <div style={{ fontSize: '0.9rem', color: '#667085', fontWeight: 600 }}>Total Orders</div>
+          <div style={{ fontSize: '0.75rem', color: '#9CA3AF', marginTop: '0.3rem' }}>COD Collected: {fmt(codCollected)}</div>
         </div>
 
+        {/* Active Delivery Partners */}
         <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
           <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#16a34a', marginBottom: '0.35rem' }}>
-            {data.activeDeliveryBoys ?? 2} <span style={{ fontSize: '1rem', color: '#667085', fontWeight: 600 }}>/ {data.totalDeliveryBoys ?? 2}</span>
+            {activeDelivery} <span style={{ fontSize: '1rem', color: '#667085', fontWeight: 600 }}>/ {totalDelivery}</span>
           </div>
           <div style={{ fontSize: '0.9rem', color: '#667085', fontWeight: 600 }}>Active Delivery Partners</div>
+          <div style={{ fontSize: '0.75rem', color: codPending > 0 ? '#D97706' : '#9CA3AF', fontWeight: codPending > 0 ? 700 : 500, marginTop: '0.3rem' }}>
+            {codPending > 0 ? `Unsettled COD: ${fmt(codPending)}` : 'All COD Deposited'}
+          </div>
         </div>
       </div>
 
-      {/* Sales Overview (Smooth Spline Curve Matching Image 4) */}
+      {/* ── 3. SALES OVERVIEW (REAL SALES TRENDS) ── */}
       <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '1.5rem', marginBottom: '2rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <h3 style={{ fontWeight: 800, fontSize: '1.2rem', color: '#173D32', margin: 0 }}>Sales Overview</h3>
           <span style={{ fontSize: '0.78rem', color: '#2E8B57', fontWeight: 700, background: '#E8F5EC', padding: '3px 10px', borderRadius: '999px' }}>Live Flour Mill Revenue</span>
         </div>
-        <SalesOverviewChart data={data.last7Days} height={170} />
+        <SalesOverviewChart data={data.salesTrends} height={170} />
       </div>
 
-      {/* Recent Orders (Table Matching Image 4) */}
+      {/* ── 4. RECENT ORDERS ── */}
       <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <h3 style={{ fontWeight: 800, fontSize: '1.2rem', color: '#173D32', margin: 0 }}>Recent Orders</h3>
@@ -827,7 +1029,7 @@ function ProductsSection() {
   const [catFilter, setCatFilter] = useState('All');
   const [modal, setModal] = useState(null); // null | 'add' | 'edit'
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name: '', sku: '', category: '', shortDescription: '', description: '', ingredients: '', price: '', originalPrice: '', weight: '5 KG', stock: 25, lowStockThreshold: 5, isFeatured: false, isBestSeller: false, isNew: false, isActive: true, image: '', tags: '' });
+  const [form, setForm] = useState({ name: '', sku: '', category: '', shortDescription: '', description: '', ingredients: '', price: '', originalPrice: '', costPrice: '', weight: '5 KG', stock: 25, lowStockThreshold: 5, isFeatured: false, isBestSeller: false, isNew: false, isActive: true, image: '', tags: '' });
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const galleryFileRef = useRef();
@@ -860,6 +1062,7 @@ function ProductsSection() {
       ingredients: '',
       price: '',
       originalPrice: '',
+      costPrice: '',
       weight: '5 KG',
       stock: 25,
       lowStockThreshold: 5,
@@ -877,6 +1080,8 @@ function ProductsSection() {
     setEditing(p);
     setForm({
       ...p,
+      costPrice: p.costPrice !== undefined && p.costPrice !== null ? p.costPrice : '',
+      lowStockThreshold: p.lowStockThreshold !== undefined ? p.lowStockThreshold : 5,
       sku: p.sku || '',
       tags: Array.isArray(p.tags) ? p.tags.join(', ') : (p.tags || '')
     });
@@ -912,6 +1117,10 @@ function ProductsSection() {
     try {
       const payload = {
         ...form,
+        costPrice: form.costPrice !== '' && form.costPrice !== undefined && form.costPrice !== null ? Number(form.costPrice) : null,
+        lowStockThreshold: form.lowStockThreshold !== '' && form.lowStockThreshold !== undefined ? Number(form.lowStockThreshold) : 5,
+        price: Number(form.price) || 0,
+        stock: Number(form.stock) || 0,
         tags: typeof form.tags === 'string' ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : form.tags
       };
       let r;
@@ -959,7 +1168,7 @@ function ProductsSection() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.95rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #E5E7EB', background: '#F8FAFC' }}>
-                {['Product Name', 'Price', 'Stock', 'Status', 'Action'].map(h => (
+                {['Product Name', 'Price / Cost', 'Stock', 'Status', 'Action'].map(h => (
                   <th key={h} style={{ textAlign: 'left', padding: '1rem', color: '#667085', fontWeight: 700, whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -976,11 +1185,21 @@ function ProductsSection() {
                       <div style={{ fontSize: '0.85rem', color: '#667085' }}>{p.category} • {p.weight}</div>
                     </div>
                   </td>
-                  <td style={{ padding: '1rem', fontWeight: 800, color: '#173D32' }}>{fmt(p.price)}</td>
+                  <td style={{ padding: '1rem' }}>
+                    <div style={{ fontWeight: 800, color: '#173D32' }}>{fmt(p.price)}</div>
+                    {p.costPrice !== undefined && p.costPrice !== null && p.costPrice !== '' ? (
+                      <div style={{ fontSize: '0.78rem', color: '#667085' }}>Cost: {fmt(p.costPrice)}</div>
+                    ) : (
+                      <div style={{ fontSize: '0.74rem', color: '#D97706', fontWeight: 700 }}>No Cost Data</div>
+                    )}
+                  </td>
                   <td style={{ padding: '1rem' }}>
                     <span style={{ fontWeight: 800, color: p.stock <= 0 ? '#dc2626' : p.stock <= (p.lowStockThreshold || 5) ? '#ea580c' : '#2E8B57' }}>
                       {p.stock}
                     </span>
+                    <div style={{ fontSize: '0.72rem', color: '#9CA3AF' }}>
+                      Min: {p.lowStockThreshold || 5}
+                    </div>
                   </td>
                   <td style={{ padding: '1rem' }}>
                     <span style={{ padding: '4px 10px', borderRadius: '999px', fontSize: '0.8rem', fontWeight: 700, background: p.isActive ? '#E8F5EC' : '#FDE8E6', color: p.isActive ? '#2E8B57' : '#C0392B' }}>
@@ -1021,6 +1240,12 @@ function ProductsSection() {
               <input style={{ width: '100%', padding: '0.8rem', border: '1px solid #E5E7EB', borderRadius: '8px', outline: 'none' }} type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} />
             </div>
             <div>
+              <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.5rem', color: '#667085', fontSize: '0.9rem' }}>
+                Cost Price (₹) <span style={{ fontSize: '0.75rem', color: '#2E8B57', fontWeight: 600 }}>(For Real Profit)</span>
+              </label>
+              <input style={{ width: '100%', padding: '0.8rem', border: '1px solid #E5E7EB', borderRadius: '8px', outline: 'none' }} type="number" placeholder="e.g. 180" value={form.costPrice} onChange={e => setForm(f => ({ ...f, costPrice: e.target.value }))} />
+            </div>
+            <div>
               <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.5rem', color: '#667085', fontSize: '0.9rem' }}>Original Price (₹)</label>
               <input style={{ width: '100%', padding: '0.8rem', border: '1px solid #E5E7EB', borderRadius: '8px', outline: 'none' }} type="number" value={form.originalPrice} onChange={e => setForm(f => ({ ...f, originalPrice: e.target.value }))} />
             </div>
@@ -1031,6 +1256,12 @@ function ProductsSection() {
             <div>
               <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.5rem', color: '#667085', fontSize: '0.9rem' }}>Stock Quantity *</label>
               <input style={{ width: '100%', padding: '0.8rem', border: '1px solid #E5E7EB', borderRadius: '8px', outline: 'none' }} type="number" value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.5rem', color: '#667085', fontSize: '0.9rem' }}>
+                Low Stock Threshold <span style={{ fontSize: '0.75rem', color: '#667085', fontWeight: 500 }}>(Auto-Alert)</span>
+              </label>
+              <input style={{ width: '100%', padding: '0.8rem', border: '1px solid #E5E7EB', borderRadius: '8px', outline: 'none' }} type="number" placeholder="5" value={form.lowStockThreshold} onChange={e => setForm(f => ({ ...f, lowStockThreshold: e.target.value }))} />
             </div>
             <div>
               <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.5rem', color: '#667085', fontSize: '0.9rem' }}>Product SKU</label>
@@ -2034,6 +2265,18 @@ function ReturnsSection() {
             <strong>Issue:</strong> {selected.issueType || 'N/A'}<br />
             <strong>Description:</strong> {selected.description || selected.issue || 'N/A'}
           </div>
+          {selected.imageUrl && (
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '4px' }}>Customer Photo Proof:</div>
+              <a href={selected.imageUrl} target="_blank" rel="noreferrer">
+                <img
+                  src={selected.imageUrl}
+                  alt="Customer issue proof"
+                  style={{ maxWidth: '100%', maxHeight: '180px', objectFit: 'contain', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}
+                />
+              </a>
+            </div>
+          )}
           <FieldRow label="Admin Notes"><textarea style={textareaStyle} value={notes} onChange={e => setNotes(e.target.value)} /></FieldRow>
           <FieldRow label="Resolution Type">
             <select style={selectStyle} value={resolution} onChange={e => setResolution(e.target.value)}>
@@ -2043,8 +2286,261 @@ function ReturnsSection() {
               <option value="rejected">Reject Request</option>
             </select>
           </FieldRow>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
             {STATUSES.map(s => <button key={s} onClick={() => update(selected._id, s)} className="btn btn-sm btn-outline" style={{ fontSize: '0.8rem' }}>{s}</button>)}
+          </div>
+          {selected.status === 'Approved' && !selected.replacementOrderId && (
+            <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={async () => {
+                  if (!confirm('Generate free replacement order for this customer?')) return;
+                  const res = await API(`/admin/returns/${selected._id}/create-replacement`, { method: 'POST', body: JSON.stringify({ notes }) });
+                  if (res.success) {
+                    alert(`Replacement order #${res.replacementOrder?.orderId || ''} created!`);
+                    setSelected(null);
+                    load();
+                  } else alert(res.message);
+                }}
+                className="btn btn-sm btn-primary"
+              >
+                📦 Create Free Replacement Order
+              </button>
+            </div>
+          )}
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ── 7b. SUPPORT TICKETS MANAGEMENT (Features 67-68) ───────────────
+function TicketsSection() {
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [adminReply, setAdminReply] = useState('');
+  const [internalNote, setInternalNote] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const load = () => {
+    setLoading(true);
+    API('/support/admin/all')
+      .then(r => { if (r.success) setTickets(r.tickets || []); })
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { load(); }, []);
+
+  const handleUpdateStatus = async (ticketId, status, priority) => {
+    const res = await API(`/support/admin/${ticketId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status, priority })
+    });
+    if (res.success) {
+      if (selectedTicket && selectedTicket._id === ticketId) {
+        setSelectedTicket(res.ticket);
+      }
+      load();
+    } else alert(res.message);
+  };
+
+  const handleSendReply = async () => {
+    if (!adminReply.trim() || !selectedTicket) return;
+    setSubmitting(true);
+    try {
+      const res = await API(`/support/tickets/${selectedTicket._id || selectedTicket.ticketId}/reply`, {
+        method: 'POST',
+        body: JSON.stringify({ message: adminReply.trim() })
+      });
+      if (res.success) {
+        setAdminReply('');
+        const refreshed = await API(`/support/tickets/${selectedTicket._id || selectedTicket.ticketId}`);
+        if (refreshed.success && refreshed.ticket) setSelectedTicket(refreshed.ticket);
+        load();
+      } else alert(res.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleAddInternalNote = async () => {
+    if (!internalNote.trim() || !selectedTicket) return;
+    setSubmitting(true);
+    try {
+      const res = await API(`/support/admin/${selectedTicket._id || selectedTicket.ticketId}/internal-note`, {
+        method: 'POST',
+        body: JSON.stringify({ note: internalNote.trim() })
+      });
+      if (res.success) {
+        setInternalNote('');
+        const refreshed = await API(`/support/tickets/${selectedTicket._id || selectedTicket.ticketId}`);
+        if (refreshed.success && refreshed.ticket) setSelectedTicket(refreshed.ticket);
+        load();
+      } else alert(res.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+            Customer Support Tickets ({tickets.length})
+          </h2>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+            Features 67-68: Two-way ticket resolution, customer isolation & internal admin notes.
+          </div>
+        </div>
+      </div>
+
+      {loading ? <Loader /> : (
+        <div style={{ overflowX: 'auto', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: '12px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid var(--border-subtle)', background: 'var(--bg-secondary)' }}>
+                {['Ticket ID', 'Customer', 'Category', 'Subject', 'Linked Order', 'Priority', 'Status', 'Date', 'Action'].map(h => (
+                  <th key={h} style={{ textAlign: 'left', padding: '0.65rem 0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {tickets.map(t => (
+                <tr key={t._id || t.ticketId} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  <td style={{ padding: '0.7rem 0.75rem', fontWeight: 800, color: 'var(--earth-brown)' }}>{t.ticketId}</td>
+                  <td style={{ padding: '0.7rem 0.75rem' }}>
+                    <div style={{ fontWeight: 700 }}>{t.customerName}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t.customerMobile}</div>
+                  </td>
+                  <td style={{ padding: '0.7rem 0.75rem' }}>
+                    <span className="badge" style={{ backgroundColor: '#E8F5EC', color: '#173D32', fontSize: '0.72rem' }}>
+                      {t.category}
+                    </span>
+                  </td>
+                  <td style={{ padding: '0.7rem 0.75rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
+                    {t.subject}
+                  </td>
+                  <td style={{ padding: '0.7rem 0.75rem', color: 'var(--text-muted)' }}>
+                    {t.orderId ? `#${t.orderId}` : '—'}
+                  </td>
+                  <td style={{ padding: '0.7rem 0.75rem' }}>
+                    <span className={`badge ${t.priority === 'URGENT' ? 'badge-red' : t.priority === 'HIGH' ? 'badge-gold' : 'badge-outline'}`} style={{ fontSize: '0.7rem' }}>
+                      {t.priority}
+                    </span>
+                  </td>
+                  <td style={{ padding: '0.7rem 0.75rem' }}>
+                    <span className={`badge ${t.status === 'RESOLVED' || t.status === 'CLOSED' ? 'badge-green' : t.status === 'WAITING_FOR_CUSTOMER' ? 'badge-gold' : 'badge-primary'}`} style={{ fontSize: '0.72rem' }}>
+                      {t.status.replace(/_/g, ' ')}
+                    </span>
+                  </td>
+                  <td style={{ padding: '0.7rem 0.75rem', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                    {fmtDate(t.createdAt)}
+                  </td>
+                  <td style={{ padding: '0.7rem 0.75rem' }}>
+                    <button onClick={() => setSelectedTicket(t)} className="btn btn-sm btn-outline">
+                      Manage
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {tickets.length === 0 && <EmptyState message="No support tickets opened" icon={MessageSquare} />}
+        </div>
+      )}
+
+      {selectedTicket && (
+        <Modal title={`Ticket #${selectedTicket.ticketId} — ${selectedTicket.subject}`} onClose={() => setSelectedTicket(null)} maxWidth="700px">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem', fontSize: '0.88rem' }}>
+            <div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Customer</div>
+              <div style={{ fontWeight: 700 }}>{selectedTicket.customerName} ({selectedTicket.customerMobile})</div>
+              {selectedTicket.customerEmail && <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{selectedTicket.customerEmail}</div>}
+            </div>
+            <div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Linked Order</div>
+              <div style={{ fontWeight: 700 }}>{selectedTicket.orderId ? `#${selectedTicket.orderId}` : 'None'}</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>Status:</span>
+            {['OPEN', 'IN_PROGRESS', 'WAITING_FOR_CUSTOMER', 'RESOLVED', 'CLOSED'].map(st => (
+              <button
+                key={st}
+                onClick={() => handleUpdateStatus(selectedTicket._id, st, selectedTicket.priority)}
+                className={`btn btn-sm ${selectedTicket.status === st ? 'btn-primary' : 'btn-outline'}`}
+                style={{ fontSize: '0.72rem', padding: '2px 8px' }}
+              >
+                {st.replace(/_/g, ' ')}
+              </button>
+            ))}
+          </div>
+
+          {/* Conversation Thread */}
+          <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem', marginBottom: '1rem' }}>
+            <div style={{ fontWeight: 800, fontSize: '0.92rem', marginBottom: '0.75rem' }}>💬 Conversation Thread</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', maxHeight: '240px', overflowY: 'auto', background: 'var(--bg-surface)', padding: '0.75rem', borderRadius: '8px' }}>
+              {(selectedTicket.replies || []).map((rep, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    padding: '0.6rem 0.85rem',
+                    borderRadius: '8px',
+                    background: rep.senderRole === 'admin' ? '#DEF7EC' : '#FFFFFF',
+                    border: rep.senderRole === 'admin' ? '1px solid #BCF0DA' : '1px solid var(--border-subtle)',
+                    alignSelf: rep.senderRole === 'admin' ? 'flex-end' : 'flex-start',
+                    maxWidth: '85%',
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', fontSize: '0.72rem', fontWeight: 700, color: rep.senderRole === 'admin' ? '#03543F' : '#111827', marginBottom: '2px' }}>
+                    <span>{rep.senderRole === 'admin' ? '🛡️ Admin' : `👤 ${rep.senderName || 'Customer'}`}</span>
+                    <span style={{ color: '#64748B', fontWeight: 400 }}>{fmtDateTime(rep.timestamp)}</span>
+                  </div>
+                  <div>{rep.message}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Admin Reply Form */}
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+              <input
+                style={{ ...inputStyle, flex: 1 }}
+                placeholder="Type reply to customer..."
+                value={adminReply}
+                onChange={e => setAdminReply(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleSendReply(); }}
+              />
+              <button onClick={handleSendReply} disabled={submitting || !adminReply.trim()} className="btn btn-primary btn-sm">
+                Send Reply
+              </button>
+            </div>
+          </div>
+
+          {/* Internal Notes Section (Strictly hidden from customer) */}
+          <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem', background: '#FFFBEB', padding: '0.85rem', borderRadius: '8px', border: '1px solid #FDE68A' }}>
+            <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#92400E', marginBottom: '0.5rem' }}>
+              🔒 Internal Admin Notes (Hidden from Customer)
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '0.5rem' }}>
+              {(selectedTicket.internalNotes || []).map((n, idx) => (
+                <div key={idx} style={{ fontSize: '0.8rem', color: '#78350F', background: '#FFFFFF', padding: '0.4rem 0.6rem', borderRadius: '4px', border: '1px solid #FDE68A' }}>
+                  <strong>{n.adminName}:</strong> {n.note} <span style={{ color: '#9CA3AF', fontSize: '0.72rem' }}>({fmtDateTime(n.timestamp)})</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                style={{ ...inputStyle, background: '#FFFFFF', flex: 1 }}
+                placeholder="Add private note for staff / miller..."
+                value={internalNote}
+                onChange={e => setInternalNote(e.target.value)}
+              />
+              <button onClick={handleAddInternalNote} disabled={submitting || !internalNote.trim()} className="btn btn-sm btn-outline">
+                Save Note
+              </button>
+            </div>
           </div>
         </Modal>
       )}
@@ -3134,12 +3630,507 @@ function ProfileSection({ user, onLogout }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// AI BUSINESS ASSISTANT SECTION
+// ═══════════════════════════════════════════════════════════════
+function AiAssistantSection({ navigate }) {
+  const [messages, setMessages] = useState([
+    {
+      id: 1,
+      sender: 'ai',
+      text: 'Namaste Admin! 🙏 Main BPS Fresh Mills ka AI Business Assistant hoon. Main direct aapke real store database se live metrics calculate karke answers deta hoon.\n\nAap mujhse natural Hindi ya English mein pooch sakte hain, jaise:\n• *“Aaj kitni sale hui?”*\n• *“Kaunsa product sabse zyada bik raha hai?”*\n• *“Kaunsa stock jaldi khatam hoga?”*\n• *“Kitna COD pending hai?”*\n• *“Top 5 products kaunse hain?”*',
+      timestamp: new Date().toISOString()
+    }
+  ]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [quickStats, setQuickStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [pendingProposal, setPendingProposal] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [backupMsg, setBackupMsg] = useState('');
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  const chatBottomRef = useRef(null);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      setStatsLoading(true);
+      const res = await API('/admin/ai-assistant/quick-stats');
+      if (res.success) setQuickStats(res.stats);
+    } catch (e) {
+      console.error('Failed to load AI quick stats:', e);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, loading]);
+
+  const handleSend = async (queryText) => {
+    const textToSend = (queryText || input).trim();
+    if (!textToSend || loading) return;
+
+    const userMsg = {
+      id: Date.now(),
+      sender: 'user',
+      text: textToSend,
+      timestamp: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, userMsg]);
+    setInput('');
+    setLoading(true);
+
+    try {
+      const res = await API('/admin/ai-assistant/query', {
+        method: 'POST',
+        body: JSON.stringify({ query: textToSend })
+      });
+
+      if (res.success) {
+        const aiMsg = {
+          id: Date.now() + 1,
+          sender: 'ai',
+          text: res.answer,
+          actionProposal: res.actionProposal || null,
+          source: res.source,
+          timestamp: res.timestamp || new Date().toISOString()
+        };
+        setMessages(prev => [...prev, aiMsg]);
+        if (res.actionProposal) {
+          setPendingProposal(res.actionProposal);
+        }
+      } else {
+        setMessages(prev => [...prev, {
+          id: Date.now() + 1,
+          sender: 'ai',
+          text: res.message || 'Maaf kijiye, query process karne mein samasya aayi.',
+          timestamp: new Date().toISOString()
+        }]);
+      }
+    } catch (err) {
+      setMessages(prev => [...prev, {
+        id: Date.now() + 1,
+        sender: 'ai',
+        text: `Error: ${err.message || 'Server se connect karne mein samasya aayi.'}`,
+        timestamp: new Date().toISOString()
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmAction = async (proposal) => {
+    if (!proposal) return;
+    setActionLoading(true);
+    try {
+      const res = await API('/admin/ai-assistant/execute-action', {
+        method: 'POST',
+        body: JSON.stringify({ actionPayload: proposal })
+      });
+      if (res.success) {
+        setMessages(prev => [...prev, {
+          id: Date.now(),
+          sender: 'ai',
+          text: `✔ **Action Executed:** ${res.message}`,
+          timestamp: new Date().toISOString()
+        }]);
+        setPendingProposal(null);
+        fetchStats();
+      }
+    } catch (err) {
+      alert(`Action failed: ${err.message}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleBackupNow = async () => {
+    setIsBackingUp(true);
+    setBackupMsg('');
+    try {
+      const res = await API('/admin/system/backup', { method: 'POST' });
+      if (res.success) {
+        setBackupMsg(`✔ Backup created: ${res.backup.fileName} (${res.backup.sizeKb} KB, ${res.backup.totalRecords} records)`);
+        setMessages(prev => [...prev, {
+          id: Date.now(),
+          sender: 'ai',
+          text: `💾 **Full Database Backup Created!**\n\n• **File:** \`${res.backup.fileName}\`\n• **Size:** ${res.backup.sizeKb} KB\n• **Records Backed Up:** ${res.backup.totalRecords} records\n• **Timestamp:** ${res.backup.createdAt}`,
+          timestamp: new Date().toISOString()
+        }]);
+      }
+    } catch (e) {
+      setBackupMsg(`❌ Backup failed: ${e.message}`);
+    } finally {
+      setIsBackingUp(false);
+    }
+  };
+
+  const PROMPT_CHIPS = [
+    'Aaj kitni sale hui?',
+    'Kaunsa product sabse zyada bik raha hai?',
+    'Kaunsa stock jaldi khatam hoga?',
+    'Is month profit kitna hai?',
+    'Kitna COD pending hai?',
+    'Aaj kitne orders aaye?',
+    'Top 5 products kaunse hain?'
+  ];
+
+  return (
+    <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '1200px', margin: '0 auto' }}>
+      {/* Header Banner */}
+      <div style={{
+        background: 'linear-gradient(135deg, #173D32 0%, #245A4A 100%)',
+        borderRadius: '16px',
+        padding: '1.75rem',
+        color: '#FFFFFF',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '1rem',
+        boxShadow: '0 4px 20px rgba(23,61,50,0.15)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{
+            width: 48,
+            height: 48,
+            borderRadius: '12px',
+            background: 'rgba(255,255,255,0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#C9A44C'
+          }}>
+            <Sparkles size={28} />
+          </div>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800, letterSpacing: '-0.01em' }}>
+              BPS AI Business Assistant
+            </h2>
+            <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.8)', marginTop: '4px' }}>
+              Real-time decision intelligence grounded strictly in live database records. Zero hallucination.
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <button
+            onClick={handleBackupNow}
+            disabled={isBackingUp}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '0.55rem 1rem',
+              borderRadius: '8px',
+              background: 'rgba(255,255,255,0.12)',
+              border: '1px solid rgba(255,255,255,0.25)',
+              color: '#FFFFFF',
+              fontWeight: 700,
+              fontSize: '0.82rem',
+              cursor: isBackingUp ? 'not-allowed' : 'pointer'
+            }}
+          >
+            <Archive size={16} /> {isBackingUp ? 'Backing Up…' : 'Backup Database'}
+          </button>
+
+          <span style={{
+            background: '#DEF7EC',
+            color: '#03543F',
+            padding: '4px 12px',
+            borderRadius: '999px',
+            fontSize: '0.75rem',
+            fontWeight: 800,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#0E9F6E' }} /> Live DB Sync
+          </span>
+        </div>
+      </div>
+
+      {backupMsg && (
+        <div style={{
+          padding: '0.75rem 1rem',
+          borderRadius: '8px',
+          background: backupMsg.startsWith('✔') ? '#DEF7EC' : '#FDE8E8',
+          color: backupMsg.startsWith('✔') ? '#03543F' : '#9B1C1C',
+          fontSize: '0.85rem',
+          fontWeight: 600
+        }}>
+          {backupMsg}
+        </div>
+      )}
+
+      {/* Real Database Quick Metric Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+        <div style={{ background: '#FFFFFF', padding: '1.25rem', borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Today's Real Sales</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#173D32', marginTop: '4px' }}>
+            {statsLoading ? '…' : fmt(quickStats?.todaySales || 0)}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#16A34A', fontWeight: 600, marginTop: '2px' }}>
+            {statsLoading ? '' : `${quickStats?.todayOrders || 0} orders today`}
+          </div>
+        </div>
+
+        <div style={{ background: '#FFFFFF', padding: '1.25rem', borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Low Stock Grains</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 900, color: (quickStats?.lowStockCount || 0) > 0 ? '#D97706' : '#16A34A', marginTop: '4px' }}>
+            {statsLoading ? '…' : `${quickStats?.lowStockCount || 0} Products`}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600, marginTop: '2px' }}>
+            Stock threshold $\le 10$ units
+          </div>
+        </div>
+
+        <div style={{ background: '#FFFFFF', padding: '1.25rem', borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Pending COD Cash</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#C9A44C', marginTop: '4px' }}>
+            {statsLoading ? '…' : fmt(quickStats?.pendingCod || 0)}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600, marginTop: '2px' }}>
+            Held by riders / in transit
+          </div>
+        </div>
+
+        <div style={{ background: '#FFFFFF', padding: '1.25rem', borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Month Gross Margin</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#173D32', marginTop: '4px' }}>
+            {statsLoading ? '…' : fmt(quickStats?.estimatedProfit || 0)}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600, marginTop: '2px' }}>
+            ~28% Chakki milling margin
+          </div>
+        </div>
+      </div>
+
+      {/* Suggestion Chips */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748B' }}>Quick Business Questions (Click to ask):</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+          {PROMPT_CHIPS.map((prompt, idx) => (
+            <button
+              key={idx}
+              onClick={() => handleSend(prompt)}
+              disabled={loading}
+              style={{
+                padding: '0.4rem 0.85rem',
+                borderRadius: '999px',
+                background: '#FFFFFF',
+                border: '1px solid #CBD5E1',
+                color: '#1E293B',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#2E8B57'; e.currentTarget.style.color = '#2E8B57'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#CBD5E1'; e.currentTarget.style.color = '#1E293B'; }}
+            >
+              💬 {prompt}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Chat Thread Container */}
+      <div style={{
+        background: '#FFFFFF',
+        borderRadius: '14px',
+        border: '1px solid #E5E7EB',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '520px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+        overflow: 'hidden'
+      }}>
+        {/* Messages List */}
+        <div style={{ flex: 1, padding: '1.25rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {messages.map(msg => {
+            const isUser = msg.sender === 'user';
+            return (
+              <div
+                key={msg.id}
+                style={{
+                  display: 'flex',
+                  justifyContent: isUser ? 'flex-end' : 'flex-start',
+                  gap: '0.75rem'
+                }}
+              >
+                {!isUser && (
+                  <div style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: '50%',
+                    background: '#173D32',
+                    color: '#C9A44C',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <Sparkles size={18} />
+                  </div>
+                )}
+
+                <div style={{
+                  maxWidth: '80%',
+                  background: isUser ? '#173D32' : '#F8FAFC',
+                  color: isUser ? '#FFFFFF' : '#0F172A',
+                  padding: '0.9rem 1.15rem',
+                  borderRadius: isUser ? '16px 16px 2px 16px' : '16px 16px 16px 2px',
+                  border: isUser ? 'none' : '1px solid #E2E8F0',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+                }}>
+                  <div style={{ whiteSpace: 'pre-line', fontSize: '0.9rem', lineHeight: 1.55 }}>
+                    {msg.text}
+                  </div>
+
+                  {msg.source === 'DATABASE_GROUNDED' && (
+                    <div style={{ marginTop: '6px', fontSize: '0.68rem', color: isUser ? '#E2E8F0' : '#64748B', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <CheckCircle2 size={12} style={{ color: isUser ? '#4ADE80' : '#16A34A' }} /> Verified from Real DB • {fmtDateTime(msg.timestamp)}
+                    </div>
+                  )}
+
+                  {/* Sensitive Action Proposal Card */}
+                  {msg.actionProposal && (
+                    <div style={{
+                      marginTop: '0.85rem',
+                      background: '#FFFBEB',
+                      border: '1.5px solid #F59E0B',
+                      borderRadius: '8px',
+                      padding: '0.85rem',
+                      color: '#92400E'
+                    }}>
+                      <div style={{ fontWeight: 800, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <AlertCircle size={16} /> Admin Confirmation Required
+                      </div>
+                      <div style={{ fontSize: '0.82rem', marginTop: '4px', fontWeight: 600 }}>
+                        {msg.actionProposal.description}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', marginTop: '4px', color: '#B45309' }}>
+                        {msg.actionProposal.warning}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '0.75rem' }}>
+                        <button
+                          onClick={() => handleConfirmAction(msg.actionProposal)}
+                          disabled={actionLoading}
+                          style={{
+                            padding: '0.45rem 0.9rem',
+                            borderRadius: '6px',
+                            background: '#2E8B57',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            fontWeight: 700,
+                            fontSize: '0.8rem',
+                            cursor: actionLoading ? 'not-allowed' : 'pointer'
+                          }}
+                        >
+                          {actionLoading ? 'Executing…' : '✔ Confirm & Execute Action'}
+                        </button>
+                        <button
+                          onClick={() => setPendingProposal(null)}
+                          style={{
+                            padding: '0.45rem 0.9rem',
+                            borderRadius: '6px',
+                            background: '#FFFFFF',
+                            color: '#64748B',
+                            border: '1px solid #CBD5E1',
+                            fontWeight: 600,
+                            fontSize: '0.8rem',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {loading && (
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#173D32', color: '#C9A44C', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Sparkles size={18} />
+              </div>
+              <div style={{ background: '#F1F5F9', padding: '0.75rem 1rem', borderRadius: '12px', fontSize: '0.85rem', color: '#475569', fontWeight: 600 }}>
+                Querying real database metrics…
+              </div>
+            </div>
+          )}
+          <div ref={chatBottomRef} />
+        </div>
+
+        {/* Input Bar */}
+        <form
+          onSubmit={e => { e.preventDefault(); handleSend(); }}
+          style={{
+            display: 'flex',
+            gap: '0.75rem',
+            padding: '0.9rem 1.25rem',
+            borderTop: '1px solid #E5E7EB',
+            background: '#FAFAFA'
+          }}
+        >
+          <input
+            type="text"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder="Poochiye: 'Aaj kitni sale hui?', 'Kaunsa stock kam hai?', 'Order BPS1020 ka status'..."
+            disabled={loading}
+            style={{
+              flex: 1,
+              padding: '0.65rem 1rem',
+              borderRadius: '8px',
+              border: '1.5px solid #CBD5E1',
+              fontSize: '0.9rem',
+              outline: 'none',
+              background: '#FFFFFF'
+            }}
+          />
+          <button
+            type="submit"
+            disabled={loading || !input.trim()}
+            style={{
+              padding: '0.65rem 1.3rem',
+              background: '#173D32',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
+              opacity: loading || !input.trim() ? 0.6 : 1
+            }}
+          >
+            Send
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 // MAIN ADMIN PANEL COMPONENT
 // ═══════════════════════════════════════════════════════════════
 
-// All 15 items exactly matching reference images 1, 2, 3, 4
+// All items matching reference structure plus AI Assistant
 const TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'ai-assistant', label: 'AI Assistant', icon: Sparkles },
   { id: 'products', label: 'Products', icon: Package },
   { id: 'categories', label: 'Categories', icon: Layers },
   { id: 'orders', label: 'Orders', icon: ShoppingBag },
@@ -3148,6 +4139,7 @@ const TABS = [
   { id: 'deliverysettings', label: 'Delivery Settings', icon: MapPin },
   { id: 'offers', label: 'Offers & Banners', icon: Tag },
   { id: 'returns', label: 'Returns & Refunds', icon: RotateCcw },
+  { id: 'tickets', label: 'Support Tickets', icon: MessageSquare },
   { id: 'reviews', label: 'Reviews', icon: Star },
   { id: 'customercare', label: 'Customer Care', icon: Phone },
   { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -3186,7 +4178,8 @@ export default function AdminPanel({ navigate }) {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'dashboard': return <Dashboard navigate={navigate} />;
+      case 'dashboard': return <Dashboard navigate={navigate} setActiveTab={setActiveTab} />;
+      case 'ai-assistant': return <AiAssistantSection navigate={navigate} />;
       case 'orders': return <OrdersSection />;
       case 'products': return <ProductsSection />;
       case 'categories': return <CategoriesSection />;
@@ -3195,6 +4188,7 @@ export default function AdminPanel({ navigate }) {
       case 'deliverysettings': return <SettingsSection initialTab="delivery" />;
       case 'offers': return <OffersSection />;
       case 'returns': return <ReturnsSection />;
+      case 'tickets': return <TicketsSection />;
       case 'reviews': return <ReviewsSection />;
       case 'customercare': return <SettingsSection initialTab="customercare" />;
       case 'notifications': return <NotificationsSection navigate={navigate} />;
@@ -3202,7 +4196,7 @@ export default function AdminPanel({ navigate }) {
       case 'auditlogs': return <AuditLogsSection />;
       case 'settings': return <SettingsSection initialTab="business" />;
       case 'profile': return <ProfileSection user={user} onLogout={handleLogout} />;
-      default: return <Dashboard navigate={navigate} />;
+      default: return <Dashboard navigate={navigate} setActiveTab={setActiveTab} />;
     }
   };
 
@@ -3280,6 +4274,22 @@ export default function AdminPanel({ navigate }) {
             <LogOut size={18} style={{ flexShrink: 0 }} />
             {sidebarOpen && <span>Logout</span>}
           </button>
+
+          {/* Role Identity Badge for Admin Portal */}
+          {sidebarOpen && (
+            <div style={{
+              margin: '1.25rem 0.5rem 0.5rem',
+              padding: '0.85rem 0.75rem',
+              background: 'rgba(255,255,255,0.05)',
+              borderRadius: '10px',
+              border: '1px solid rgba(201,164,76,0.3)',
+              textAlign: 'center'
+            }}>
+              <img src="/logo.png" alt="BPS Fresh Mills" style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'contain', margin: '0 auto 4px' }} />
+              <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#C9A44C' }}>🌾 BPS Admin Portal</div>
+              <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.65)', marginTop: '2px' }}>Official Store Management Console</div>
+            </div>
+          )}
         </nav>
       </aside>
 
@@ -3314,8 +4324,11 @@ export default function AdminPanel({ navigate }) {
             </div>
           </div>
 
-          {/* Right: Theme Switcher, Notification & Profile Pill */}
+          {/* Right: Theme Switcher, Install Admin App, Notification & Profile Pill */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', position: 'relative' }}>
+            {/* Install Admin App PWA Button */}
+            <InstallPwaButton portalType="admin" />
+
             {/* Theme Switcher (Light / Dark / System) */}
             <ThemeSwitcher variant="dropdown" />
 
@@ -3384,6 +4397,30 @@ export default function AdminPanel({ navigate }) {
         <main style={{ flex: 1, padding: '2rem', overflowY: 'auto' }}>
           {renderContent()}
         </main>
+
+        {/* Role Identity Footer for Admin Portal */}
+        <footer style={{
+          padding: '0.85rem 2rem',
+          borderTop: '1px solid #E5E7EB',
+          background: '#FFFFFF',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '0.75rem',
+          fontSize: '0.82rem',
+          color: '#64748B'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <img src="/logo.png" alt="BPS Fresh Mills" style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'contain' }} />
+            <span style={{ fontWeight: 800, color: '#173D32' }}>🌾 BPS Fresh Mills — Admin Portal</span>
+            <span style={{ background: '#DEF7EC', color: '#03543F', padding: '2px 8px', borderRadius: '999px', fontSize: '0.7rem', fontWeight: 800 }}>Admin Mode</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <span>Ye BPS Admin Portal hai — Official Store Management, Inventory & AI Assistant</span>
+            <InstallPwaButton portalType="admin" style={{ padding: '0.35rem 0.75rem', fontSize: '0.76rem' }} />
+          </div>
+        </footer>
       </div>
     </div>
   );

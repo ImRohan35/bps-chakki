@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Phone, Mail, MapPin, MessageCircle, Clock, ShieldCheck, RefreshCw } from 'lucide-react';
 import { fetchApi } from '../utils/api';
+import InstallPwaButton from './InstallPwaButton';
 
 export default function Footer({ navigate }) {
   const [settings, setSettings] = useState({
@@ -238,6 +239,34 @@ export default function Footer({ navigate }) {
               15 KM Delivery Coverage
             </button>
           </div>
+        </div>
+
+        {/* Role Identity Badge & Install App Bar for Customer App */}
+        <div style={{
+          marginTop: '1.75rem',
+          padding: '0.9rem 1.25rem',
+          backgroundColor: '#0F261F',
+          borderRadius: '12px',
+          border: '1px solid rgba(201,164,76,0.3)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            <img src="/logo.png" alt="BPS Fresh Mills" style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'contain' }} />
+            <div>
+              <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#C9A44C', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                🌾 BPS Customer App
+                <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '999px', background: '#2E8B57', color: '#FFFFFF', fontWeight: 700 }}>Official Customer Portal</span>
+              </div>
+              <div style={{ fontSize: '0.76rem', color: '#B8C4BE', marginTop: '2px' }}>
+                Ye BPS Customer Portal hai — Freshly Milled Pure Stone Chakki Atta, Orders & Live Tracking
+              </div>
+            </div>
+          </div>
+          <InstallPwaButton portalType="customer" />
         </div>
       </div>
     </footer>

@@ -3,10 +3,11 @@ import { Check, Clock, Package, Truck, CheckCircle2, XCircle, AlertCircle } from
 
 const ORDER_STAGES = [
   { key: 'Order Placed', aliases: ['Order Placed'], label: 'Order Placed', icon: Clock },
-  { key: 'Admin Confirmation', aliases: ['Confirmed', 'Admin Confirmation'], label: 'Admin Confirmation', icon: Check },
-  { key: 'Processing', aliases: ['Processing', 'Preparing'], label: 'Processing', icon: Package },
-  { key: 'Shipped', aliases: ['Shipped', 'Ready for Delivery'], label: 'Shipped', icon: Truck },
+  { key: 'Admin Confirmation', aliases: ['Confirmed', 'Admin Confirmation'], label: 'Confirmed', icon: Check },
+  { key: 'Processing', aliases: ['Processing', 'Preparing'], label: 'Processing & Milling', icon: Package },
+  { key: 'Delivery Assigned', aliases: ['Delivery Assigned', 'Shipped', 'Ready for Delivery'], label: 'Delivery Assigned', icon: Truck },
   { key: 'Out for Delivery', aliases: ['Out for Delivery'], label: 'Out for Delivery', icon: Truck },
+  { key: 'Arrived', aliases: ['Arrived'], label: 'Arrived at Doorstep', icon: Truck },
   { key: 'Delivered', aliases: ['Delivered'], label: 'Delivered', icon: CheckCircle2 }
 ];
 
@@ -90,7 +91,8 @@ export default function OrderTimeline({ currentStatus, timeline = [] }) {
   const isPendingAdmin = currentStatus === 'Pending Admin Confirmation';
 
   return (
-    <div className="timeline-container">
+    <div>
+      <div className="timeline-container">
       {ORDER_STAGES.map((stage, idx) => {
         let isCompleted = false;
         let isActive = false;
@@ -153,5 +155,15 @@ export default function OrderTimeline({ currentStatus, timeline = [] }) {
         );
       })}
     </div>
-  );
+
+    {currentStatus === 'Arrived' && (
+      <div style={{ marginTop: '1.25rem', padding: '1rem 1.25rem', backgroundColor: '#E8F5EC', border: '1.5px solid #2E8B57', borderRadius: 'var(--radius-md)', color: '#173D32', display: 'flex', alignItems: 'center', gap: '0.75rem', animation: 'pulse 2s infinite' }}>
+        <Truck size={22} color="#2E8B57" />
+        <div style={{ fontSize: '0.9rem', lineHeight: 1.4 }}>
+          <strong>Rider Has Arrived!</strong> Your delivery partner is waiting outside your location. Please share your 4-digit Delivery OTP and keep cash ready for COD payment.
+        </div>
+      </div>
+    )}
+  </div>
+);
 }

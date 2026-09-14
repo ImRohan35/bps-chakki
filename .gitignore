@@ -11,6 +11,8 @@ frontend/node_modules/
 
 # ===== BUILD OUTPUT =====
 frontend/build/
+frontend/dist/
+backend/backups/
 
 # ===== LOGS =====
 *.log

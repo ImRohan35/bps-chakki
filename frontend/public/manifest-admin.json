@@ -1,0 +1,26 @@
+{
+  "name": "BPS Fresh Mills — Admin Portal",
+  "short_name": "BPS Admin",
+  "description": "BPS Fresh Mills Store Management, Inventory, Dispatch & AI Business Assistant",
+  "start_url": "/admin",
+  "scope": "/admin",
+  "display": "standalone",
+  "background_color": "#121F1A",
+  "theme_color": "#121F1A",
+  "orientation": "any",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

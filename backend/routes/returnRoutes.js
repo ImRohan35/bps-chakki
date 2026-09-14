@@ -1,10 +1,50 @@
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
 const db = require('../config/db');
 const { authenticate, adminOnly } = require('../middleware/auth');
+const eventBus = require('../services/eventBus');
 
 const router = express.Router();
 
-// 1. CUSTOMER CREATES RETURN / REPORT ISSUE
+// Multer photo upload for returns
+let upload = null;
+try {
+  const multer = require('multer');
+  const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
+  if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname);
+      cb(null, `return_${Date.now()}${ext}`);
+    }
+  });
+  upload = multer({
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+    fileFilter: (req, file, cb) => {
+      const allowed = /jpeg|jpg|png|webp/;
+      const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+      const mime = allowed.test(file.mimetype);
+      if (ext && mime) return cb(null, true);
+      cb(new Error('Only JPG, JPEG, PNG, and WebP images are allowed for returns.'));
+    }
+  });
+} catch (e) {}
+
+// POST /api/returns/upload-photo (Feature 62)
+router.post('/upload-photo', authenticate, (req, res) => {
+  if (!upload) return res.status(400).json({ success: false, message: 'Upload service not configured' });
+  upload.single('image')(req, res, (err) => {
+    if (err) return res.status(400).json({ success: false, message: err.message });
+    if (!req.file) return res.status(400).json({ success: false, message: 'No photo uploaded' });
+    const url = `/uploads/${req.file.filename}`;
+    res.json({ success: true, url });
+  });
+});
+
+// 1. CUSTOMER CREATES RETURN / REPORT ISSUE (Features 61, 63, 64)
 router.post('/', authenticate, (req, res) => {
   try {
     const user = req.user;
@@ -33,12 +73,26 @@ router.post('/', authenticate, (req, res) => {
       });
     }
 
+    // Food product return window validation (Feature 64: Configurable, default 48h)
+    const settings = db.Settings.find()[0] || {};
+    const returnWindowHours = Number(settings.returnWindowHours) || 48;
+    const deliveredAtTime = order.deliveredAt ? new Date(order.deliveredAt).getTime() : new Date(order.updatedAt || 0).getTime();
+    const now = Date.now();
+    const hoursElapsed = (now - deliveredAtTime) / (1000 * 60 * 60);
+
+    if (hoursElapsed > returnWindowHours) {
+      return res.status(400).json({
+        success: false,
+        message: `Policy Notice: Our fresh chakki flours contain zero preservatives. Issues must be reported within ${returnWindowHours} hours of doorstep delivery. Please contact customer care for assistance.`
+      });
+    }
+
     const validReasons = [
       'Damaged package',
       'Wrong product',
-      'Wrong quantity',
-      'Packaging issue',
+      'Missing quantity',
       'Quality issue',
+      'Packaging issue',
       'Other'
     ];
 
@@ -46,19 +100,37 @@ router.post('/', authenticate, (req, res) => {
       return res.status(400).json({ success: false, message: 'Please select a valid reason.' });
     }
 
+    const history = [
+      {
+        status: 'REQUESTED',
+        timestamp: new Date().toISOString(),
+        actor: user.name,
+        actorRole: 'customer',
+        note: 'Issue reported by customer.'
+      }
+    ];
+
     const returnDoc = db.ReturnRequests.insertOne({
       orderId: order.orderId,
       orderDbId: order._id,
       customerId: user._id,
       customerName: user.name,
       customerPhone: user.mobile,
+      customerEmail: user.email || '',
       productId: productId || null,
       reason,
       description: description.trim(),
       imageUrl: imageUrl || '',
-      status: 'Pending', // Pending, Approved, Rejected, Replacement Initiated, Refund Initiated, Resolved
+      status: 'REQUESTED', // REQUESTED -> UNDER_REVIEW -> APPROVED -> REPLACEMENT / REFUND -> COMPLETED, or REJECTED
       adminNotes: '',
-      resolutionType: null // 'replacement' | 'refund' | 'none'
+      resolutionType: null, // 'replacement' | 'refund' | 'store_credit' | 'none'
+      replacementOrderId: null,
+      history
+    });
+
+    eventBus.emit('RETURN_REQUESTED', {
+      returnRequest: returnDoc,
+      order
     });
 
     res.status(201).json({
@@ -84,4 +156,25 @@ router.get('/my-reports', authenticate, (req, res) => {
   }
 });
 
+// 3. GET SINGLE RETURN REQUEST
+router.get('/:id', authenticate, (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = req.user;
+
+    const report = db.ReturnRequests.findById(id) || db.ReturnRequests.findOne(r => r._id === id || r.id === id);
+    if (!report) return res.status(404).json({ success: false, message: 'Return report not found' });
+
+    const isAdmin = user.role === 'admin' || user.role === 'super_admin';
+    if (!isAdmin && report.customerId !== user._id && report.customerPhone !== user.mobile) {
+      return res.status(403).json({ success: false, message: 'Unauthorized access' });
+    }
+
+    res.json({ success: true, returnRequest: report });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch report' });
+  }
+});
+
 module.exports = router;
+

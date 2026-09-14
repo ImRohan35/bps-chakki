@@ -8,6 +8,7 @@ const {
   sendOrderStatusUpdateNotifications,
   createInAppNotification
 } = require('../services/notificationService');
+const eventBus = require('../services/eventBus');
 const path = require('path');
 const fs = require('fs');
 
@@ -59,27 +60,214 @@ router.get('/dashboard', (req, res) => {
 
     const todayStr = new Date().toISOString().slice(0, 10);
     const monthStr = new Date().toISOString().slice(0, 7);
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    let todayOrdersCount = 0, todaySales = 0, totalSales = 0, monthlySales = 0;
+    let todayOrdersCount = 0, todaySales = 0, thisWeekSales = 0, monthlySales = 0, totalSales = 0;
     const statusCounts = { 'Order Placed': 0, 'Confirmed': 0, 'Preparing': 0, 'Ready for Delivery': 0, 'Out for Delivery': 0, 'Delivered': 0, 'Cancelled': 0 };
     let codCollected = 0, codPending = 0;
+
+    let hasMissingCostData = false;
+    let totalGrossProfit = 0;
+    let soldItemCount = 0;
 
     orders.forEach(order => {
       const d = (order.createdAt || '').slice(0, 10);
       const m = (order.createdAt || '').slice(0, 7);
-      if (d === todayStr && order.orderStatus !== 'Cancelled') { todayOrdersCount++; todaySales += order.totalAmount || 0; }
-      if (m === monthStr && order.orderStatus !== 'Cancelled') monthlySales += order.totalAmount || 0;
-      if (order.orderStatus !== 'Cancelled') totalSales += order.totalAmount || 0;
+      const orderDate = new Date(order.createdAt || 0);
+      const isNonCancelled = order.orderStatus !== 'Cancelled';
+
+      if (isNonCancelled) {
+        totalSales += order.totalAmount || 0;
+        if (d === todayStr) {
+          todayOrdersCount++;
+          todaySales += order.totalAmount || 0;
+        }
+        if (orderDate >= sevenDaysAgo) {
+          thisWeekSales += order.totalAmount || 0;
+        }
+        if (m === monthStr) {
+          monthlySales += order.totalAmount || 0;
+        }
+
+        // Real profit calculation: (sellingPrice - costPrice) * quantity
+        if (Array.isArray(order.items) && order.items.length > 0) {
+          order.items.forEach(item => {
+            soldItemCount++;
+            let cost = item.costPrice;
+            if (cost === undefined || cost === null || cost === '') {
+              const prod = db.Products.findById(item.productId);
+              if (prod && prod.costPrice !== undefined && prod.costPrice !== null && prod.costPrice !== '' && !isNaN(Number(prod.costPrice))) {
+                cost = Number(prod.costPrice);
+              }
+            }
+            if (cost === undefined || cost === null || cost === '' || isNaN(Number(cost))) {
+              hasMissingCostData = true;
+            } else {
+              const sellingPrice = Number(item.price) || 0;
+              const qty = Number(item.quantity) || 1;
+              totalGrossProfit += (sellingPrice - Number(cost)) * qty;
+            }
+          });
+        }
+      }
+
       if (statusCounts[order.orderStatus] !== undefined) statusCounts[order.orderStatus]++;
       if (order.paymentMethod === 'Cash on Delivery') {
         if (order.paymentStatus === 'COD Collected' || order.orderStatus === 'Delivered') codCollected += order.totalAmount || 0;
-        else if (order.orderStatus !== 'Cancelled') codPending += order.totalAmount || 0;
+        else if (isNonCancelled) codPending += order.totalAmount || 0;
       }
     });
 
-    const lowStockProducts = products.filter(p => { const t = p.lowStockThreshold !== undefined ? p.lowStockThreshold : 5; return p.stock <= t && p.isActive !== false; });
+    // Real profit output
+    const realProfit = (soldItemCount > 0 && hasMissingCostData) ? null : Math.round(totalGrossProfit * 100) / 100;
+    const profitMarginPercent = (realProfit !== null && totalSales > 0) ? Number(((realProfit / totalSales) * 100).toFixed(1)) : null;
+    const profitStatusMessage = (soldItemCount > 0 && hasMissingCostData)
+      ? 'Cost data required to calculate profit'
+      : null;
+
+    const lowStockProducts = products.filter(p => {
+      const t = p.lowStockThreshold !== undefined ? p.lowStockThreshold : 5;
+      return p.stock <= t && p.stock > 0 && p.isActive !== false;
+    });
     const outOfStockProducts = products.filter(p => p.stock <= 0 && p.isActive !== false);
     const activeOffers = offers.filter(o => o.isActive && (!o.endDate || new Date(o.endDate) >= new Date()));
+
+    // ──────────────────────────────────────────────
+    // ACTION REQUIRED CENTER (Management by Exception)
+    // ──────────────────────────────────────────────
+    const actionRequired = [];
+
+    // 1. Out of stock products
+    outOfStockProducts.forEach(p => {
+      actionRequired.push({
+        id: `oos_${p._id}`,
+        type: 'OUT_OF_STOCK',
+        severity: 'critical',
+        badge: 'Out of Stock',
+        title: p.name,
+        description: `Current inventory is 0. Immediate replenishment needed.`,
+        actionLabel: 'Update Stock',
+        targetTab: 'products',
+        targetId: p._id
+      });
+    });
+
+    // 2. Low stock products
+    lowStockProducts.forEach(p => {
+      actionRequired.push({
+        id: `low_${p._id}`,
+        type: 'LOW_STOCK',
+        severity: 'warning',
+        badge: 'Low Stock',
+        title: p.name,
+        description: `Only ${p.stock} units left (Threshold: ${p.lowStockThreshold || 5}).`,
+        actionLabel: 'Restock',
+        targetTab: 'products',
+        targetId: p._id
+      });
+    });
+
+    // 3. Unsettled COD Cash with delivery agents
+    deliveryAgents.forEach(a => {
+      const cashDiff = a.cashDifference || 0;
+      if (cashDiff > 0) {
+        actionRequired.push({
+          id: `cash_${a._id}`,
+          type: 'UNSETTLED_CASH',
+          severity: 'warning',
+          badge: 'Unsettled Cash',
+          title: `Cash pending: ${a.name}`,
+          description: `₹${cashDiff} cash collected by agent pending deposit with admin.`,
+          actionLabel: 'Settle Cash',
+          targetTab: 'delivery-boys',
+          targetId: a._id
+        });
+      }
+    });
+
+    // 4. Pending Return Requests & Issues (Features 61-64)
+    returnRequests.filter(r => r.status === 'Pending' || r.status === 'REQUESTED' || r.status === 'UNDER_REVIEW').forEach(r => {
+      actionRequired.push({
+        id: `return_${r._id}`,
+        type: 'PENDING_RETURN',
+        severity: 'info',
+        badge: 'Return Request',
+        title: `Return / Issue: Order #${r.orderId}`,
+        description: `Reason: ${r.reason || 'Issue reported'}. Requires admin review.`,
+        actionLabel: 'Review Request',
+        targetTab: 'returns',
+        targetId: r._id
+      });
+    });
+
+    // 5. Failed Deliveries (Feature 50)
+    orders.filter(o => o.orderStatus === 'Delivery Attempt Failed').forEach(o => {
+      const lastAttempt = (o.deliveryAttempts && o.deliveryAttempts.length > 0)
+        ? o.deliveryAttempts[o.deliveryAttempts.length - 1]
+        : null;
+      actionRequired.push({
+        id: `failed_del_${o._id}`,
+        type: 'FAILED_DELIVERY',
+        severity: 'warning',
+        badge: 'Failed Delivery',
+        title: `Delivery Failed: Order #${o.orderId}`,
+        description: `Attempt failed: ${lastAttempt?.reason || 'Customer unavailable'}. Review order status.`,
+        actionLabel: 'View Order',
+        targetTab: 'orders',
+        targetId: o._id
+      });
+    });
+
+    // 6. COD Settlements Mismatches & Pending Verifications (Features 55 & 56)
+    const settlements = db.CashSettlements.find();
+    settlements.filter(s => s.status === 'SUBMITTED').forEach(s => {
+      const isMismatch = s.difference !== 0;
+      actionRequired.push({
+        id: `settle_${s._id}`,
+        type: isMismatch ? 'COD_MISMATCH' : 'PENDING_SETTLEMENT',
+        severity: isMismatch ? 'error' : 'warning',
+        badge: isMismatch ? '⚠ COD SETTLEMENT MISMATCH' : 'Pending Settlement',
+        title: `Settlement from ${s.deliveryBoyName || 'Delivery Partner'}`,
+        description: isMismatch
+          ? `Mismatch: Deposited ₹${s.depositedAmount}, Expected ₹${s.expectedAmount} (Diff: ₹${s.difference})`
+          : `Cash deposit of ₹${s.depositedAmount} submitted. Awaiting admin counter verification.`,
+        actionLabel: 'Verify Cash',
+        targetTab: 'delivery-boys',
+        targetId: s._id
+      });
+    });
+
+    // 7. Open Support Tickets (Features 67 & 68)
+    const tickets = db.Tickets ? db.Tickets.find() : [];
+    tickets.filter(t => t.status === 'OPEN' || t.status === 'IN_PROGRESS').forEach(t => {
+      actionRequired.push({
+        id: `ticket_${t._id}`,
+        type: 'SUPPORT_TICKET',
+        severity: t.priority === 'URGENT' || t.priority === 'HIGH' ? 'error' : 'info',
+        badge: `Ticket #${t.ticketId}`,
+        title: `Support: ${t.subject}`,
+        description: `From ${t.customerName} (${t.category}). Status: ${t.status}.`,
+        actionLabel: 'Reply Ticket',
+        targetTab: 'support',
+        targetId: t._id
+      });
+    });
+
+    // 8. Unassigned active orders that need delivery boy
+    orders.filter(o => !o.assignedDeliveryBoy && o.orderStatus !== 'Cancelled' && o.orderStatus !== 'Delivered' && o.orderStatus !== 'Returned').forEach(o => {
+      actionRequired.push({
+        id: `unassigned_${o._id}`,
+        type: 'UNASSIGNED_ORDER',
+        severity: 'warning',
+        badge: 'Unassigned Order',
+        title: `Order #${o.orderId}`,
+        description: `Status: ${o.orderStatus} (₹${o.totalAmount}). Needs delivery assignment.`,
+        actionLabel: 'Assign Delivery',
+        targetTab: 'orders',
+        targetId: o._id
+      });
+    });
 
     const productSalesMap = {};
     orders.forEach(order => {
@@ -112,22 +300,39 @@ router.get('/dashboard', (req, res) => {
     const recentOrders = [...orders].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 10);
 
     res.json({
-      success: true, stats: {
-        todayOrdersCount, todaySales, totalSales, monthlySales,
-        totalOrders: orders.length, totalCustomers: customers.length,
+      success: true,
+      stats: {
+        todayOrdersCount,
+        todaySales,
+        thisWeekSales,
+        monthlySales,
+        totalSales,
+        realProfit,
+        profitMarginPercent,
+        hasMissingCostData,
+        profitStatusMessage,
+        totalOrders: orders.length,
+        totalCustomers: customers.length,
         totalDeliveryBoys: deliveryAgents.length,
         activeDeliveryBoys,
         inactiveDeliveryBoys,
         pendingOrders: statusCounts['Order Placed'] + statusCounts['Confirmed'] + statusCounts['Preparing'],
-        deliveredOrders: statusCounts['Delivered'], cancelledOrders: statusCounts['Cancelled'],
+        deliveredOrders: statusCounts['Delivered'],
+        cancelledOrders: statusCounts['Cancelled'],
         outForDelivery: statusCounts['Out for Delivery'],
         statusCounts,
-        lowStockCount: lowStockProducts.length, lowStockProducts,
+        lowStockCount: lowStockProducts.length,
+        lowStockProducts,
         outOfStockCount: outOfStockProducts.length,
         activeOffersCount: activeOffers.length,
         cod: { codCollected, codPending },
         pendingReturns: returnRequests.filter(r => r.status === 'Pending').length,
-        bestSellers, salesTrends: last7Days, last30Days, recentOrders
+        bestSellers,
+        salesTrends: last7Days,
+        last30Days,
+        recentOrders,
+        actionRequired,
+        actionRequiredCount: actionRequired.length
       }
     });
   } catch (err) {
@@ -316,14 +521,38 @@ router.put('/orders/:id/tracking-details', (req, res) => {
 router.put('/orders/:id/assign-delivery', (req, res) => {
   try {
     const { id } = req.params;
-    const { agentId, agentName, agentPhone } = req.body;
+    let { agentId, agentName, agentPhone, note, deliveryBoyId } = req.body;
+    agentId = agentId || deliveryBoyId;
+
+    if (agentId && (!agentName || !agentPhone)) {
+      const agentUser = db.Users.findOne(u => u._id === agentId || u.mobile === agentId);
+      if (agentUser) {
+        agentName = agentName || agentUser.name;
+        agentPhone = agentPhone || agentUser.mobile;
+        agentId = agentUser._id;
+      }
+    }
+
     const order = db.Orders.findOne(o => o._id === id || o.orderId === id);
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
-    // Validate active delivery agent
+    // Prevent assignment of cancelled, delivered, or invalid orders (Feature 41)
+    if (order.orderStatus === 'Cancelled') {
+      return res.status(400).json({ success: false, message: 'Cannot assign a cancelled order.' });
+    }
+    if (order.orderStatus === 'Delivered') {
+      return res.status(400).json({ success: false, message: 'Order is already delivered.' });
+    }
+
+    // Validate active and available delivery agent (Feature 58)
     const agent = db.DeliveryAgents.findOne(a => a._id === agentId || a.userId === agentId);
-    if (agent && agent.status !== 'active') {
-      return res.status(400).json({ success: false, message: 'Selected delivery partner is currently inactive and cannot receive new orders.' });
+    if (agent) {
+      if (agent.status !== 'active') {
+        return res.status(400).json({ success: false, message: 'Selected delivery partner is currently deactivated and cannot receive new orders.' });
+      }
+      if (agent.availabilityStatus === 'OFFLINE') {
+        return res.status(400).json({ success: false, message: 'Selected delivery partner is currently marked OFFLINE.' });
+      }
     }
 
     const timeline = order.statusTimeline || [];
@@ -331,30 +560,49 @@ router.put('/orders/:id/assign-delivery', (req, res) => {
     const isReassigned = Boolean(prevAgentName && prevAgentName !== agentName);
 
     const assignmentNote = isReassigned
-      ? `Reassigned from ${prevAgentName} to ${agentName} (${agentPhone}) by ${req.user?.name || 'Admin'}`
-      : `Assigned to: ${agentName} (${agentPhone}) by ${req.user?.name || 'Admin'}`;
+      ? `Reassigned from ${prevAgentName} to ${agentName} (${agentPhone}) by ${req.user?.name || 'Admin'}${note ? `. Reason: ${note}` : ''}`
+      : `Assigned to: ${agentName} (${agentPhone}) by ${req.user?.name || 'Admin'}${note ? `. Note: ${note}` : ''}`;
+
+    // Maintain full assignment history (Feature 42)
+    const assignmentHistory = order.assignmentHistory || [];
+    assignmentHistory.push({
+      orderId: order.orderId,
+      deliveryBoyId: agentId,
+      agentName,
+      agentPhone,
+      assignedBy: req.user?.name || 'Admin',
+      assignedById: req.user?._id || '',
+      assignedAt: new Date().toISOString(),
+      action: isReassigned ? 'REASSIGNED' : 'ASSIGNED',
+      previousAgent: prevAgentName || null,
+      note: note || ''
+    });
 
     timeline.push({
-      status: order.orderStatus,
+      status: 'Delivery Assigned',
       timestamp: new Date().toISOString(),
       note: assignmentNote
     });
 
     const updated = db.Orders.updateById(order._id, {
+      orderStatus: 'Delivery Assigned',
       assignedDeliveryBoy: {
         agentId,
         name: agentName,
         phone: agentPhone,
-        assignedAt: new Date().toISOString()
+        assignedAt: new Date().toISOString(),
+        status: 'Assigned',
+        note: note || ''
       },
+      assignmentHistory,
       statusTimeline: timeline
     });
 
-    logAdminAction(req.user, 'ORDER_ASSIGNED', {
+    logAdminAction(req.user, isReassigned ? 'ORDER_REASSIGNED' : 'ORDER_ASSIGNED', {
       orderId: order.orderId,
       agent: agentName,
-      reassigned: isReassigned,
-      previousAgent: prevAgentName || null
+      previousAgent: prevAgentName || null,
+      note: note || ''
     });
 
     // Real-time In-App Notification for Delivery Boy
@@ -362,7 +610,7 @@ router.put('/orders/:id/assign-delivery', (req, res) => {
       createInAppNotification({
         recipientRole: 'delivery',
         recipientUserId: agent?.userId || agentId,
-        title: 'New Delivery Assigned',
+        title: isReassigned ? 'Reassigned Delivery Order' : 'New Delivery Assigned',
         message: `Order #${order.orderId} (₹${order.totalAmount}) assigned to you. Address: ${order.shippingAddress?.houseFlat || ''}, ${order.shippingAddress?.streetArea || ''}`,
         type: 'delivery',
         orderId: order.orderId,
@@ -380,6 +628,11 @@ router.put('/orders/:id/assign-delivery', (req, res) => {
         orderId: order.orderId,
         link: `/tracking?id=${order.orderId}`
       });
+
+      eventBus.emit('DELIVERY_ASSIGNED', {
+        order: updated,
+        deliveryBoy: { agentId, name: agentName, phone: agentPhone, userId: agent?.userId }
+      });
     } catch (err) {
       console.error('[Notification] Assign delivery notification error:', err);
     }
@@ -391,6 +644,59 @@ router.put('/orders/:id/assign-delivery', (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to assign agent' });
+  }
+});
+
+// Remove delivery assignment (Feature 42)
+router.put('/orders/:id/remove-assignment', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const order = db.Orders.findOne(o => o._id === id || o.orderId === id);
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    if (order.orderStatus === 'Delivered' || order.orderStatus === 'Out for Delivery') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot remove assignment for order in state "${order.orderStatus}".`
+      });
+    }
+
+    const prevAgent = order.assignedDeliveryBoy;
+    const timeline = order.statusTimeline || [];
+    timeline.push({
+      status: 'Ready for Delivery',
+      timestamp: new Date().toISOString(),
+      note: `Delivery assignment removed by ${req.user?.name || 'Admin'}${reason ? `. Reason: ${reason}` : ''}`
+    });
+
+    const assignmentHistory = order.assignmentHistory || [];
+    assignmentHistory.push({
+      orderId: order.orderId,
+      deliveryBoyId: prevAgent?.agentId || null,
+      agentName: prevAgent?.name || 'Unknown',
+      removedBy: req.user?.name || 'Admin',
+      removedAt: new Date().toISOString(),
+      action: 'REMOVED',
+      note: reason || ''
+    });
+
+    const updated = db.Orders.updateById(order._id, {
+      orderStatus: 'Ready for Delivery',
+      assignedDeliveryBoy: null,
+      assignmentHistory,
+      statusTimeline: timeline
+    });
+
+    logAdminAction(req.user, 'ORDER_ASSIGNMENT_REMOVED', {
+      orderId: order.orderId,
+      previousAgent: prevAgent?.name || null,
+      reason: reason || ''
+    });
+
+    res.json({ success: true, message: 'Assignment removed successfully', order: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to remove assignment' });
   }
 });
 
@@ -455,15 +761,16 @@ router.get('/products', (req, res) => {
 
 router.post('/products', (req, res) => {
   try {
-    const { name, category, shortDescription, description, ingredients, price, originalPrice, weight, weights, stock, lowStockThreshold, isFeatured, isActive, isBestSeller, isNew, image, images, sku, tags } = req.body;
+    const { name, category, shortDescription, description, ingredients, price, originalPrice, costPrice, weight, weights, stock, lowStockThreshold, isFeatured, isActive, isBestSeller, isNew, image, images, sku, tags } = req.body;
     if (!name || !price || !category) return res.status(400).json({ success: false, message: 'Name, price, and category are required' });
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const numPrice = Number(price); const numOriginal = originalPrice ? Number(originalPrice) : numPrice;
+    const numCost = (costPrice !== undefined && costPrice !== null && costPrice !== '') ? Number(costPrice) : null;
     const generatedSku = sku ? sku.trim() : `BPS-${(category || 'FLR').slice(0, 3).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`;
     const productImages = Array.isArray(images) && images.length > 0 ? images : (image ? [image] : []);
     const newProduct = db.Products.insertOne({
       name, slug, category, sku: generatedSku, shortDescription: shortDescription || '', description: description || '', ingredients: ingredients || '',
-      price: numPrice, originalPrice: numOriginal,
+      price: numPrice, originalPrice: numOriginal, costPrice: numCost,
       discountPercent: numOriginal > numPrice ? Math.round(((numOriginal - numPrice) / numOriginal) * 100) : 0,
       weight: weight || '5 KG',
       weights: weights || [{ weight: weight || '5 KG', price: numPrice, originalPrice: numOriginal, inStock: true, stockCount: Number(stock) || 20 }],
@@ -485,6 +792,9 @@ router.put('/products/:id', (req, res) => {
     const updates = { ...req.body };
     if (updates.price) updates.price = Number(updates.price);
     if (updates.originalPrice) updates.originalPrice = Number(updates.originalPrice);
+    if (updates.costPrice !== undefined) {
+      updates.costPrice = (updates.costPrice !== null && updates.costPrice !== '') ? Number(updates.costPrice) : null;
+    }
     if (updates.stock !== undefined) updates.stock = Number(updates.stock);
     if (updates.lowStockThreshold !== undefined) updates.lowStockThreshold = Number(updates.lowStockThreshold);
     if (updates.price && updates.originalPrice && updates.originalPrice > updates.price) {
@@ -524,6 +834,15 @@ router.put('/products/:id/stock', (req, res) => {
     const updated = db.Products.updateById(id, updates);
     db.StockHistory.insertOne({ productId: id, productName: product.name, previousStock: product.stock, newStock, change: newStock - product.stock, reason: reason || 'Manual adjustment', adminId: req.user._id, adminName: req.user.name, timestamp: new Date().toISOString() });
     logAdminAction(req.user, 'STOCK_UPDATED', { productId: id, name: product.name, from: product.stock, to: newStock });
+
+    // Automation event triggers
+    const threshold = updated.lowStockThreshold !== undefined ? updated.lowStockThreshold : 5;
+    if (newStock <= 0) {
+      eventBus.emit('STOCK_OUT', { product: updated });
+    } else if (newStock <= threshold) {
+      eventBus.emit('STOCK_LOW', { product: updated, stock: newStock, threshold });
+    }
+
     res.json({ success: true, message: `Stock updated to ${newStock}`, product: updated });
   } catch (err) { res.status(500).json({ success: false, message: 'Failed to update stock' }); }
 });
@@ -857,6 +1176,14 @@ router.post('/cash-settlement', (req, res) => {
       notes: notes || ''
     });
 
+    // Automation event trigger for settlement confirmation
+    eventBus.emit('SETTLEMENT_CONFIRMED', {
+      agent,
+      amount: depositAmount,
+      record,
+      remaining: outstandingCash
+    });
+
     res.json({
       success: true,
       message: `₹${depositAmount} cash handover recorded for ${agent.name}`,
@@ -882,8 +1209,423 @@ router.get('/cash-settlements', (req, res) => {
       (r.amountDeposited && String(r.amountDeposited).includes(q))
     );
   }
-  records.sort((a, b) => new Date(b.date) - new Date(a.date));
+  records.sort((a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0));
   res.json({ success: true, settlements: records });
+});
+
+// Settlement Verification & Mismatch Handling (Features 55 & 56)
+router.put('/cash-settlements/:id/verify', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { notes, remarks, verifiedAmount } = req.body || {};
+    const settlement = db.CashSettlements.findOne(s => s._id === id || s.id === id);
+    if (!settlement) return res.status(404).json({ success: false, message: 'Settlement record not found' });
+
+    const isMismatch = settlement.difference !== 0;
+    const updated = db.CashSettlements.updateById(settlement._id, {
+      status: 'VERIFIED',
+      verifiedAt: new Date().toISOString(),
+      verifiedBy: req.user.name,
+      adminNotes: remarks || notes || settlement.adminNotes || 'Verified by admin'
+    });
+
+    // Update agent's totalCashDeposited and cashDifference
+    const agent = db.DeliveryAgents.findOne(a => a._id === settlement.agentId || a.userId === settlement.deliveryBoyId);
+    if (agent) {
+      const prevDeposited = Number(agent.totalCashDeposited) || 0;
+      const newTotalDeposited = prevDeposited + (Number(settlement.depositedAmount) || 0);
+      const outstanding = Math.max(0, (Number(agent.totalCashCollected) || 0) - newTotalDeposited);
+      db.DeliveryAgents.updateById(agent._id, {
+        totalCashDeposited: newTotalDeposited,
+        cashDifference: outstanding
+      });
+    }
+
+    logAdminAction(req.user, isMismatch ? 'SETTLEMENT_EXCEPTION_LOGGED' : 'SETTLEMENT_VERIFIED', {
+      settlementId: settlement._id,
+      amount: settlement.depositedAmount,
+      difference: settlement.difference
+    });
+
+    res.json({
+      success: true,
+      message: `Settlement verified successfully for ₹${settlement.depositedAmount}.`,
+      settlement: updated
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to verify settlement' });
+  }
+});
+
+router.put('/cash-settlements/:id/reject', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body || {};
+    const settlement = db.CashSettlements.findOne(s => s._id === id || s.id === id);
+    if (!settlement) return res.status(404).json({ success: false, message: 'Settlement record not found' });
+
+    const updated = db.CashSettlements.updateById(settlement._id, {
+      status: 'REJECTED',
+      rejectionReason: reason || 'Cash handover rejected by admin',
+      verifiedAt: new Date().toISOString(),
+      verifiedBy: req.user.name
+    });
+
+    logAdminAction(req.user, 'SETTLEMENT_REJECTED', {
+      settlementId: settlement._id,
+      reason: reason || ''
+    });
+
+    res.json({ success: true, message: 'Settlement rejected', settlement: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to reject settlement' });
+  }
+});
+
+// Delivery Performance Analytics (Feature 57)
+router.get('/delivery-performance', (req, res) => {
+  try {
+    const agents = db.DeliveryAgents.find();
+    const orders = db.Orders.find();
+
+    const performance = agents.map(agent => {
+      const agentOrders = orders.filter(o =>
+        o.assignedDeliveryBoy &&
+        (o.assignedDeliveryBoy.agentId === agent._id ||
+         o.assignedDeliveryBoy.agentId === agent.userId ||
+         o.assignedDeliveryBoy.phone === agent.mobile)
+      );
+
+      const totalAssigned = agentOrders.length;
+      const deliveredOrders = agentOrders.filter(o => o.orderStatus === 'Delivered');
+      const failedOrders = agentOrders.filter(o => o.orderStatus === 'Delivery Attempt Failed');
+      const totalDelivered = deliveredOrders.length;
+      const totalFailed = failedOrders.length;
+
+      const totalAttempted = totalDelivered + totalFailed;
+      const deliverySuccessRate = totalAttempted > 0 ? Math.round((totalDelivered / totalAttempted) * 100) : 0;
+      const failedDeliveryRate = totalAttempted > 0 ? Math.round((totalFailed / totalAttempted) * 100) : 0;
+
+      let codCollected = 0;
+      let codPending = 0;
+      let codExceptions = 0;
+
+      agentOrders.forEach(o => {
+        if (o.paymentMethod === 'Cash on Delivery') {
+          if (o.paymentStatus === 'COD Collected' || o.orderStatus === 'Delivered') {
+            codCollected += (Number(o.codCollected) || Number(o.totalAmount) || 0);
+          } else if (o.paymentStatus === 'COD Exception') {
+            codExceptions += (Number(o.codCollected) || 0);
+          } else if (o.orderStatus !== 'Cancelled') {
+            codPending += Number(o.totalAmount) || 0;
+          }
+        }
+      });
+
+      const totalDeposited = Number(agent.totalCashDeposited) || 0;
+      const cashDifference = codCollected - totalDeposited;
+
+      return {
+        agentId: agent._id,
+        userId: agent.userId,
+        name: agent.name,
+        mobile: agent.mobile,
+        status: agent.status,
+        availability: agent.availabilityStatus || 'AVAILABLE',
+        totalAssigned,
+        totalDelivered,
+        totalFailed,
+        deliverySuccessRate,
+        failedDeliveryRate,
+        codCollected,
+        codPending,
+        codExceptions,
+        totalDeposited,
+        cashDifference
+      };
+    });
+
+    res.json({ success: true, performance });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to calculate delivery performance' });
+  }
+});
+
+// Customer Analytics & Segmentation (Features 83 & 84)
+router.get('/customer-analytics', (req, res) => {
+  try {
+    const customers = db.Users.find(u => u.role === 'customer');
+    const orders = db.Orders.find();
+
+    const now = Date.now();
+    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+    const fortyFiveDaysAgo = now - 45 * 24 * 60 * 60 * 1000;
+    const ninetyDaysAgo = now - 90 * 24 * 60 * 60 * 1000;
+
+    let totalSpending = 0;
+    let totalCustomerOrders = 0;
+    let returningCustomersCount = 0;
+    let newCustomersCount = 0;
+
+    const analyzedCustomers = customers.map(cust => {
+      const custOrders = orders.filter(o =>
+        (o.customerId && o.customerId === cust._id) ||
+        (o.customerPhone && o.customerPhone === cust.mobile)
+      ).filter(o => o.orderStatus !== 'Cancelled');
+
+      custOrders.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+      const ordersCount = custOrders.length;
+      const customerSpend = custOrders.reduce((sum, o) => sum + (Number(o.totalAmount) || 0), 0);
+      const lastOrderDate = custOrders[0]?.createdAt || null;
+      const lastOrderTime = lastOrderDate ? new Date(lastOrderDate).getTime() : 0;
+      const joinedTime = cust.createdAt ? new Date(cust.createdAt).getTime() : 0;
+
+      totalSpending += customerSpend;
+      totalCustomerOrders += ordersCount;
+
+      if (ordersCount >= 2) returningCustomersCount++;
+      if (joinedTime >= thirtyDaysAgo) newCustomersCount++;
+
+      // Segment classification (Feature 84: NEW, REGULAR, VIP, INACTIVE, AT_RISK)
+      let segment = 'NEW';
+      if (ordersCount === 0) {
+        segment = joinedTime < ninetyDaysAgo ? 'INACTIVE' : 'NEW';
+      } else if (ordersCount >= 5 || customerSpend >= 5000) {
+        segment = 'VIP';
+      } else if (ordersCount >= 2) {
+        if (lastOrderTime < fortyFiveDaysAgo) {
+          segment = lastOrderTime < ninetyDaysAgo ? 'INACTIVE' : 'AT_RISK';
+        } else {
+          segment = 'REGULAR';
+        }
+      } else {
+        segment = lastOrderTime < fortyFiveDaysAgo ? 'AT_RISK' : 'NEW';
+      }
+
+      return {
+        id: cust._id,
+        name: cust.name,
+        email: cust.email,
+        mobile: cust.mobile,
+        ordersCount,
+        totalSpend: customerSpend,
+        avgOrderValue: ordersCount > 0 ? Math.round(customerSpend / ordersCount) : 0,
+        lastOrderDate,
+        joinedDate: cust.createdAt,
+        segment,
+        loyaltyPoints: cust.loyaltyPoints || 0,
+        walletBalance: cust.walletBalance || 0
+      };
+    });
+
+    const averageOrderValue = totalCustomerOrders > 0 ? Math.round(totalSpending / totalCustomerOrders) : 0;
+    const repeatPurchaseRate = customers.length > 0 ? Math.round((returningCustomersCount / customers.length) * 100) : 0;
+
+    const segmentCounts = {
+      NEW: analyzedCustomers.filter(c => c.segment === 'NEW').length,
+      REGULAR: analyzedCustomers.filter(c => c.segment === 'REGULAR').length,
+      VIP: analyzedCustomers.filter(c => c.segment === 'VIP').length,
+      AT_RISK: analyzedCustomers.filter(c => c.segment === 'AT_RISK').length,
+      INACTIVE: analyzedCustomers.filter(c => c.segment === 'INACTIVE').length
+    };
+
+    res.json({
+      success: true,
+      metrics: {
+        totalCustomers: customers.length,
+        newCustomers: newCustomersCount,
+        returningCustomers: returningCustomersCount,
+        totalSpending,
+        averageOrderValue,
+        repeatPurchaseRate,
+        segmentCounts
+      },
+      customers: analyzedCustomers
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to generate customer analytics' });
+  }
+});
+
+// Replacement Creation for Approved Returns (Feature 65)
+router.post('/returns/:id/create-replacement', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { productId, variantWeight, quantity, notes } = req.body || {};
+
+    const returnReq = db.ReturnRequests.findById(id) || db.ReturnRequests.findOne(r => r._id === id || r.id === id);
+    if (!returnReq) return res.status(404).json({ success: false, message: 'Return request not found' });
+
+    const originalOrder = db.Orders.findOne(o => o.orderId === returnReq.orderId || o._id === returnReq.orderDbId);
+    if (!originalOrder) return res.status(404).json({ success: false, message: 'Original order not found' });
+
+    const targetProductId = productId || returnReq.productId || originalOrder.items?.[0]?.productId;
+    const product = db.Products.findById(targetProductId);
+    if (!product) return res.status(400).json({ success: false, message: 'Replacement product not found in catalog' });
+
+    const replaceQty = Number(quantity) || 1;
+    if (product.stock < replaceQty) {
+      return res.status(400).json({ success: false, message: `Insufficient stock for replacement (${product.stock} units available)` });
+    }
+
+    // Decrement stock for replacement product
+    db.Products.updateById(product._id, { stock: product.stock - replaceQty });
+
+    const replacementRecord = db.Replacements.insertOne({
+      returnRequestId: returnReq._id,
+      originalOrderId: originalOrder.orderId,
+      customerId: returnReq.customerId,
+      customerName: returnReq.customerName,
+      customerPhone: returnReq.customerPhone,
+      productId: product._id,
+      productName: product.name,
+      variantWeight: variantWeight || product.weight || '5 KG',
+      quantity: replaceQty,
+      status: 'REPLACEMENT_INITIATED',
+      approvedBy: req.user.name,
+      notes: notes || '',
+      createdAt: new Date().toISOString()
+    });
+
+    const updatedReturn = db.ReturnRequests.updateById(returnReq._id, {
+      status: 'REPLACEMENT_INITIATED',
+      resolutionType: 'replacement',
+      replacementId: replacementRecord._id,
+      adminNotes: notes ? `${returnReq.adminNotes ? returnReq.adminNotes + ' | ' : ''}Replacement approved: ${product.name} (${replaceQty})` : returnReq.adminNotes
+    });
+
+    eventBus.emit('RETURN_STATUS_CHANGED', {
+      returnRequest: updatedReturn,
+      status: 'REPLACEMENT_INITIATED',
+      resolutionNote: `Replacement dispatched: ${product.name} × ${replaceQty}`
+    });
+
+    logAdminAction(req.user, 'REPLACEMENT_CREATED', {
+      returnId: returnReq._id,
+      replacementId: replacementRecord._id,
+      product: product.name,
+      quantity: replaceQty
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Replacement order initiated for ${product.name} (Qty: ${replaceQty}). Inventory automatically decremented.`,
+      replacement: replacementRecord,
+      replacementOrder: {
+        ...replacementRecord,
+        totalAmount: 0,
+        orderId: `REP-${originalOrder.orderId}`
+      },
+      returnRequest: updatedReturn
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to create replacement' });
+  }
+});
+
+// Support Tickets Admin Management (Feature 68)
+router.get('/tickets', (req, res) => {
+  try {
+    const tickets = db.Tickets ? db.Tickets.find() : [];
+    tickets.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    res.json({ success: true, count: tickets.length, tickets });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch tickets' });
+  }
+});
+
+router.get('/tickets/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const ticket = db.Tickets.findOne(t => t._id === id || t.ticketId === id);
+    if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
+    res.json({ success: true, ticket });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch ticket' });
+  }
+});
+
+router.put('/tickets/:id/reply', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body || {};
+    if (!message || !message.trim()) return res.status(400).json({ success: false, message: 'Reply message cannot be empty' });
+
+    const ticket = db.Tickets.findOne(t => t._id === id || t.ticketId === id);
+    if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
+
+    const replies = ticket.replies || [];
+    const newReply = {
+      id: 'rep_' + Date.now(),
+      senderRole: 'admin',
+      senderName: req.user.name,
+      senderId: req.user._id,
+      message: message.trim(),
+      timestamp: new Date().toISOString(),
+      isInternal: false
+    };
+    replies.push(newReply);
+
+    const updated = db.Tickets.updateById(ticket._id, {
+      replies,
+      status: 'WAITING_FOR_CUSTOMER'
+    });
+
+    eventBus.emit('TICKET_REPLIED', {
+      ticket: updated,
+      senderRole: 'admin',
+      senderName: req.user.name
+    });
+
+    res.json({ success: true, message: 'Reply submitted', ticket: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to submit reply' });
+  }
+});
+
+router.put('/tickets/:id/status', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, priority, assignedAdmin } = req.body || {};
+    const ticket = db.Tickets.findOne(t => t._id === id || t.ticketId === id);
+    if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
+
+    const updates = {};
+    if (status) updates.status = status.toUpperCase();
+    if (priority) updates.priority = priority.toUpperCase();
+    if (assignedAdmin !== undefined) updates.assignedAdmin = assignedAdmin;
+
+    const updated = db.Tickets.updateById(ticket._id, updates);
+    res.json({ success: true, message: 'Ticket updated', ticket: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to update ticket' });
+  }
+});
+
+router.post('/tickets/:id/internal-note', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { note } = req.body || {};
+    if (!note || !note.trim()) return res.status(400).json({ success: false, message: 'Internal note cannot be empty' });
+
+    const ticket = db.Tickets.findOne(t => t._id === id || t.ticketId === id);
+    if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
+
+    const internalNotes = ticket.internalNotes || [];
+    internalNotes.push({
+      id: 'note_' + Date.now(),
+      adminName: req.user.name,
+      adminEmail: req.user.email,
+      note: note.trim(),
+      timestamp: new Date().toISOString()
+    });
+
+    const updated = db.Tickets.updateById(ticket._id, { internalNotes });
+    res.json({ success: true, message: 'Internal note saved (not visible to customer)', internalNotes });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to save internal note' });
+  }
 });
 
 // ──────────────────────────────────────────────

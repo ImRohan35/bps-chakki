@@ -93,7 +93,9 @@ router.post('/signup', async (req, res) => {
 // 2. LOGIN
 router.post('/login', async (req, res) => {
   try {
-    const { identifier, password } = req.body; // identifier can be mobile or email
+    const rawId = req.body.identifier || req.body.emailOrPhone || req.body.email || req.body.mobile;
+    const { password } = req.body;
+    const identifier = rawId;
 
     if (!identifier || !password) {
       return res.status(400).json({ success: false, message: 'Please enter your mobile/email and password.' });
@@ -379,6 +381,158 @@ router.put('/addresses/:id/default', authenticate, (req, res) => {
     res.json({ success: true, message: 'Default address updated', addresses });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to update default address' });
+  }
+});
+
+// Helper to generate customer referral code
+function getOrCreateReferralCode(user) {
+  if (user.referralCode) return user.referralCode;
+  const namePart = (user.name || 'BPS').replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase() || 'BPS';
+  const phonePart = (user.mobile || '1234').slice(-4);
+  const code = `BPS-${namePart}${phonePart}`;
+  db.Users.updateById(user._id, { referralCode: code });
+  return code;
+}
+
+// 8. CUSTOMER LOYALTY POINTS & LEDGER (Features 85-86)
+router.get('/loyalty', authenticate, (req, res) => {
+  try {
+    const user = db.Users.findById(req.user._id);
+    const settings = db.Settings.find()[0] || {};
+    const points = Number(user.loyaltyPoints) || 0;
+    const earningRate = Number(settings.loyaltyEarningRate) || 100;
+    const redemptionValue = Number(settings.loyaltyRedemptionValue) || 1;
+
+    const ledger = db.LoyaltyLedger.find(l => l.customerId === user._id);
+    ledger.sort((a, b) => new Date(b.timestamp || b.createdAt || 0) - new Date(a.timestamp || a.createdAt || 0));
+
+    res.json({
+      success: true,
+      points,
+      earningRate,
+      redemptionValue,
+      ledger
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch loyalty details' });
+  }
+});
+
+// 9. CUSTOMER WALLET / STORE CREDIT (Feature 88)
+router.get('/wallet', authenticate, (req, res) => {
+  try {
+    const user = db.Users.findById(req.user._id);
+    const balance = Number(user.walletBalance) || 0;
+
+    const ledger = db.WalletLedger.find(w => w.customerId === user._id);
+    ledger.sort((a, b) => new Date(b.timestamp || b.createdAt || 0) - new Date(a.timestamp || a.createdAt || 0));
+
+    res.json({
+      success: true,
+      balance,
+      ledger
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch wallet details' });
+  }
+});
+
+// 10. CUSTOMER REFERRAL SYSTEM (Feature 87)
+router.get('/referral', authenticate, (req, res) => {
+  try {
+    const user = db.Users.findById(req.user._id);
+    const referralCode = getOrCreateReferralCode(user);
+
+    // Count customers who joined using this referral code
+    const referredUsers = db.Users.find(u => u.referredBy === referralCode);
+    const qualifyingOrders = db.Orders.find(o =>
+      referredUsers.some(ru => ru._id === o.customerId || ru.mobile === o.customerPhone) &&
+      o.orderStatus === 'Delivered'
+    );
+
+    res.json({
+      success: true,
+      referralCode,
+      shareUrl: `/?ref=${referralCode}`,
+      totalReferred: referredUsers.length,
+      qualifyingOrdersCount: qualifyingOrders.length,
+      rewardPerOrder: 50 // 50 loyalty points per qualifying referred order
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch referral details' });
+  }
+});
+
+// 11. NOTIFICATION PREFERENCES (Feature 75)
+router.get('/preferences', authenticate, (req, res) => {
+  try {
+    const user = db.Users.findById(req.user._id);
+    const defaultPrefs = {
+      orderUpdates: true,
+      deliveryAlerts: true,
+      supportUpdates: true,
+      promotionalOffers: false,
+      reorderReminders: true
+    };
+    res.json({
+      success: true,
+      preferences: user.notificationPreferences || defaultPrefs
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch preferences' });
+  }
+});
+
+router.put('/preferences', authenticate, (req, res) => {
+  try {
+    const user = db.Users.findById(req.user._id);
+    const current = user.notificationPreferences || {};
+    const updatedPrefs = {
+      ...current,
+      ...req.body
+    };
+
+    db.Users.updateById(user._id, { notificationPreferences: updatedPrefs });
+    res.json({ success: true, message: 'Preferences updated', preferences: updatedPrefs });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to update preferences' });
+  }
+});
+
+// 12. RECENTLY VIEWED PRODUCTS (Feature 89)
+router.get('/recently-viewed', authenticate, (req, res) => {
+  try {
+    const user = db.Users.findById(req.user._id);
+    const productIds = user.recentlyViewed || [];
+
+    const products = [];
+    for (const pid of productIds) {
+      const p = db.Products.findById(pid);
+      if (p && p.isActive !== false) products.push(p);
+    }
+
+    res.json({ success: true, products });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch recently viewed products' });
+  }
+});
+
+router.post('/recently-viewed', authenticate, (req, res) => {
+  try {
+    const { productId } = req.body;
+    if (!productId) return res.status(400).json({ success: false, message: 'Product ID required' });
+
+    const user = db.Users.findById(req.user._id);
+    let list = user.recentlyViewed || [];
+    // Remove if already present and prepend (limit to 10)
+    list = list.filter(id => id !== productId);
+    list.unshift(productId);
+    if (list.length > 10) list = list.slice(0, 10);
+
+    db.Users.updateById(user._id, { recentlyViewed: list });
+    res.json({ success: true, recentlyViewed: list });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to update recently viewed' });
   }
 });
 
