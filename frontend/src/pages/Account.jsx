@@ -15,7 +15,9 @@ import {
   Clock,
   ArrowRight,
   X,
-  XCircle
+  XCircle,
+  HelpCircle,
+  RotateCw
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -26,7 +28,7 @@ import { fetchApi } from '../utils/api';
 export default function Account({ navigate, onTrackOrder, activeTab: initialTab = 'orders' }) {
   const { user, isAuthenticated, logout, updateUser } = useAuth();
   const { wishlistItems, removeFromWishlist } = useWishlist();
-  const { addToCart } = useCart();
+  const { addToCart, reorderItems } = useCart();
 
   const [activeTab, setActiveTab] = useState(initialTab);
   const [orders, setOrders] = useState([]);
@@ -89,6 +91,55 @@ export default function Account({ navigate, onTrackOrder, activeTab: initialTab 
   const [returnImg, setReturnImg] = useState('');
   const [submittingReturn, setSubmittingReturn] = useState(false);
   const [returnMsg, setReturnMsg] = useState('');
+
+  // Order Support / "Need Help?" Modal State
+  const [helpModalOrder, setHelpModalOrder] = useState(null);
+  const [helpMessage, setHelpMessage] = useState('');
+  const [submittingHelp, setSubmittingHelp] = useState(false);
+  const [helpSuccessMsg, setHelpSuccessMsg] = useState('');
+
+  const handleOpenHelpModal = (order) => {
+    setHelpModalOrder(order);
+    setHelpMessage('');
+    setHelpSuccessMsg('');
+  };
+
+  const handleSubmitHelp = async (e) => {
+    e.preventDefault();
+    if (!helpMessage.trim() || !helpModalOrder) return;
+    setSubmittingHelp(true);
+    try {
+      const res = await fetchApi('/public/contact', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: user?.name || helpModalOrder.customerName || 'Customer',
+          phone: user?.mobile || helpModalOrder.customerPhone || '9876543210',
+          email: user?.email || helpModalOrder.customerEmail || '',
+          orderId: helpModalOrder.orderId || helpModalOrder._id,
+          message: helpMessage.trim()
+        })
+      });
+      if (res.success) {
+        setHelpSuccessMsg(res.message || 'Support request submitted successfully.');
+        setTimeout(() => {
+          setHelpModalOrder(null);
+          setHelpSuccessMsg('');
+        }, 2200);
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to submit request');
+    } finally {
+      setSubmittingHelp(false);
+    }
+  };
+
+  const handleReorder = (order) => {
+    if (!order.items || order.items.length === 0) return;
+    const res = reorderItems(order.items);
+    if (res.success && navigate) {
+      navigate('cart');
+    }
+  };
 
   // Load orders and addresses when tab active
   useEffect(() => {
@@ -468,7 +519,9 @@ export default function Account({ navigate, onTrackOrder, activeTab: initialTab 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1.25rem', backgroundColor: 'var(--bg-surface)', padding: '0.75rem', borderRadius: 'var(--radius-sm)' }}>
                         {o.items.map((it, idx) => (
                           <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                            <span>{it.name} ({it.weight}) × {it.quantity}</span>
+                            <span>
+                              {it.name} ({it.weight}{it.texture ? ` • ${it.texture === 'Fine' ? 'बारीक' : it.texture === 'Coarse' ? 'मोटा' : 'रेगुलर'}` : ''}) × {it.quantity}
+                            </span>
                             <span style={{ fontWeight: 600 }}>₹{it.subtotal || it.price * it.quantity}</span>
                           </div>
                         ))}
@@ -483,10 +536,25 @@ export default function Account({ navigate, onTrackOrder, activeTab: initialTab 
                           Track Order
                         </button>
                         <button
+                          onClick={() => handleReorder(o)}
+                          className="btn btn-sm btn-outline"
+                          style={{ borderColor: 'var(--nature-green)', color: 'var(--nature-green)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          title="Reorder same items"
+                        >
+                          <RotateCw size={14} /> Reorder
+                        </button>
+                        <button
                           onClick={() => onTrackOrder && onTrackOrder(o)}
                           className="btn btn-sm btn-outline"
                         >
                           View Details
+                        </button>
+                        <button
+                          onClick={() => handleOpenHelpModal(o)}
+                          className="btn btn-sm btn-outline"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <HelpCircle size={14} /> Need Help?
                         </button>
                         {o.orderStatus === 'Delivered' && (
                           <button
@@ -901,6 +969,52 @@ export default function Account({ navigate, onTrackOrder, activeTab: initialTab 
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Help / Support Modal */}
+      {helpModalOrder && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(23,17,15,0.7)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', padding: '2rem', maxWidth: '520px', width: '100%', boxShadow: 'var(--shadow-lg)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div>
+                <h3 style={{ fontWeight: 800 }}>Need Help with Order?</h3>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Order #{helpModalOrder.orderId || helpModalOrder._id}</div>
+              </div>
+              <button onClick={() => setHelpModalOrder(null)}><X size={20} /></button>
+            </div>
+
+            {helpSuccessMsg ? (
+              <div style={{ padding: '1.25rem', backgroundColor: 'var(--nature-light)', color: 'var(--nature-green)', borderRadius: 'var(--radius-sm)', textAlign: 'center', fontWeight: 600 }}>
+                {helpSuccessMsg}
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitHelp} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+                  Have questions regarding your order status, milling freshness, or delivery? Send us a direct message and our support team will reach out immediately.
+                </p>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.3rem' }}>Your Message / Question *</label>
+                  <textarea
+                    rows="4"
+                    placeholder="Describe how we can assist you with this order..."
+                    value={helpMessage}
+                    onChange={e => setHelpMessage(e.target.value)}
+                    required
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                  <button type="submit" className="btn btn-primary" disabled={submittingHelp} style={{ flex: 1 }}>
+                    {submittingHelp ? 'Sending...' : 'Submit Support Request'}
+                  </button>
+                  <button type="button" onClick={() => setHelpModalOrder(null)} className="btn btn-outline" style={{ flex: 1 }}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

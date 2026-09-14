@@ -8,7 +8,9 @@ import {
   Lock,
   ArrowRight,
   Plus,
-  Radio
+  Radio,
+  Clock,
+  Navigation
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -28,19 +30,50 @@ export default function Checkout({ navigate, onOrderPlaced }) {
     mobile: user?.mobile || '',
     houseFlat: '',
     streetArea: '',
-    city: 'Delhi',
-    state: 'Delhi',
-    pincode: '110085',
+    city: 'Varanasi',
+    state: 'Uttar Pradesh',
+    pincode: '221101',
     landmark: '',
-    lat: 28.7100,
-    lon: 77.1100
+    lat: 25.4678,
+    lon: 83.0564
   });
 
   const [distanceInfo, setDistanceInfo] = useState({ isDeliverable: null, distanceKm: null });
   const [checkingDistance, setCheckingDistance] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsStatus, setGpsStatus] = useState('');
+  const [millingSlot, setMillingSlot] = useState('Morning Batch (8:00 AM - 11:30 AM)');
   const [orderNotes, setOrderNotes] = useState('');
   const [submittingOrder, setSubmittingOrder] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  const handleDetectGPS = () => {
+    if (!navigator.geolocation) {
+      setGpsStatus('Geolocation is not supported by your browser.');
+      return;
+    }
+    setGpsLoading(true);
+    setGpsStatus('Fetching real-time GPS coordinates...');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const detectedLat = Number(pos.coords.latitude.toFixed(6));
+        const detectedLon = Number(pos.coords.longitude.toFixed(6));
+        setNewAddr(prev => ({
+          ...prev,
+          lat: detectedLat,
+          lon: detectedLon
+        }));
+        setGpsLoading(false);
+        setGpsStatus(`📍 GPS Detected: (${detectedLat}, ${detectedLon})`);
+        checkAddressDistance({ lat: detectedLat, lon: detectedLon });
+      },
+      (err) => {
+        setGpsLoading(false);
+        setGpsStatus(`GPS error: ${err.message}. Using store default (Cholapur, Varanasi).`);
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  };
 
   // Redirect if cart is empty
   useEffect(() => {
@@ -149,10 +182,12 @@ export default function Checkout({ navigate, onOrderPlaced }) {
           productId: item.productId,
           name: item.name,
           weight: item.weight,
+          texture: item.texture || 'Medium',
           quantity: item.quantity,
           price: item.price
         })),
         shippingAddress: currentAddr,
+        millingSlot: millingSlot,
         couponCode: coupon ? coupon.code : null,
         notes: orderNotes
       };
@@ -337,15 +372,58 @@ export default function Checkout({ navigate, onOrderPlaced }) {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={handleCheckNewAddressDistance}
-                style={{ width: '100%', padding: '1.1rem', backgroundColor: 'var(--primary-fresh-green, #2E8B57)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '1.05rem', cursor: 'pointer', marginTop: '1rem', transition: 'background-color 0.2s' }}
-                onMouseEnter={e => e.currentTarget.style.backgroundColor='var(--nature-emerald, #247346)'}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor='var(--primary-fresh-green, #2E8B57)'}
-              >
-                Check Delivery Availability
-              </button>
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+                <button
+                  type="button"
+                  onClick={handleDetectGPS}
+                  disabled={gpsLoading}
+                  style={{
+                    flex: 1,
+                    padding: '0.9rem',
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--wheat-gold, #B8860B)',
+                    border: '1.5px solid var(--wheat-gold, #B8860B)',
+                    borderRadius: '8px',
+                    fontWeight: 700,
+                    fontSize: '0.92rem',
+                    cursor: gpsLoading ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  <Navigation size={16} />
+                  {gpsLoading ? 'Detecting GPS...' : '📍 Auto-Detect Live GPS'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCheckNewAddressDistance}
+                  style={{
+                    flex: 1,
+                    padding: '0.9rem',
+                    backgroundColor: 'var(--primary-fresh-green, #2E8B57)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: 700,
+                    fontSize: '0.95rem',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor='var(--nature-emerald, #247346)'}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor='var(--primary-fresh-green, #2E8B57)'}
+                >
+                  Check Availability
+                </button>
+              </div>
+
+              {gpsStatus && (
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '0.5rem', fontStyle: 'italic' }}>
+                  {gpsStatus}
+                </div>
+              )}
             </form>
           )}
 
@@ -367,16 +445,88 @@ export default function Checkout({ navigate, onOrderPlaced }) {
                 {distanceInfo.isDeliverable ? (
                   <>
                     <CheckCircle2 size={22} color="var(--primary-fresh-green, #2E8B57)" />
-                    <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Good News — We Deliver Here</span>
+                    <div>
+                      <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Good News — We Deliver Here!</span>
+                      {distanceInfo.distanceKm && (
+                        <div style={{ fontSize: '0.82rem', opacity: 0.9 }}>
+                          Distance: ~{distanceInfo.distanceKm} KM from Lakhanpur Mill (Within 15 KM boundary)
+                        </div>
+                      )}
+                    </div>
                   </>
                 ) : (
                   <>
                     <AlertCircle size={22} color="var(--danger-rust, #C0392B)" />
-                    <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Sorry, This Area Is Outside Our Delivery Range</span>
+                    <div>
+                      <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Sorry, This Area Is Outside Our Delivery Range</span>
+                      <div style={{ fontSize: '0.82rem', opacity: 0.9 }}>
+                        {distanceInfo.message || 'Delivery is strictly limited to 15 KM from Lakhanpur, Cholapur, Varanasi.'}
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
             )}
+          </div>
+
+          {/* Fresh Milling & Delivery Batch Selection */}
+          <div style={{ backgroundColor: 'var(--bg-card)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
+              <Clock size={20} style={{ color: 'var(--primary-fresh-green, #2E8B57)' }} />
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                Select Fresh Milling & Delivery Batch
+              </h3>
+            </div>
+            <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: 1.4 }}>
+              At BPS Fresh Mills (Lakhanpur, Cholapur), grains are milled fresh strictly before dispatch. Choose your preferred batch:
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+              {[
+                {
+                  id: 'Morning Batch (8:00 AM - 11:30 AM)',
+                  title: 'Morning Batch 🌅',
+                  time: '8:00 AM – 11:30 AM',
+                  desc: 'Milled early morning, warm & fresh at breakfast'
+                },
+                {
+                  id: 'Evening Batch (4:00 PM - 7:30 PM)',
+                  title: 'Evening Batch 🌆',
+                  time: '4:00 PM – 7:30 PM',
+                  desc: 'Milled fresh in the afternoon, ready for dinner'
+                }
+              ].map(slot => (
+                <div
+                  key={slot.id}
+                  onClick={() => setMillingSlot(slot.id)}
+                  style={{
+                    padding: '1rem',
+                    borderRadius: '10px',
+                    border: millingSlot === slot.id ? '2px solid var(--primary-fresh-green, #2E8B57)' : '1px solid var(--border-subtle)',
+                    backgroundColor: millingSlot === slot.id ? 'rgba(46, 139, 87, 0.08)' : 'var(--bg-surface)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                    <span style={{ fontWeight: 800, fontSize: '0.95rem', color: millingSlot === slot.id ? 'var(--primary-fresh-green, #2E8B57)' : 'var(--text-primary)' }}>
+                      {slot.title}
+                    </span>
+                    <input
+                      type="radio"
+                      name="millingSlot"
+                      checked={millingSlot === slot.id}
+                      onChange={() => setMillingSlot(slot.id)}
+                    />
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--wheat-gold, #B8860B)', marginBottom: '0.25rem' }}>
+                    ⏱ {slot.time}
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    {slot.desc}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -405,7 +555,9 @@ export default function Checkout({ navigate, onOrderPlaced }) {
                     </div>
                     <div>
                       <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>{item.name}</div>
-                      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{item.weight} × {item.quantity}</div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        {item.weight} {item.texture ? `(${item.texture === 'Fine' ? 'बारीक' : item.texture === 'Coarse' ? 'मोटा' : 'रेगुलर'})` : ''} × {item.quantity}
+                      </div>
                     </div>
                   </div>
                   <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>₹{item.price * item.quantity}</div>

@@ -4,7 +4,8 @@ const { authenticate, adminOnly, logAdminAction } = require('../middleware/auth'
 const {
   sendOrderConfirmationNotifications,
   sendOrderCancelledNotifications,
-  sendOrderStatusUpdateNotifications
+  sendOrderStatusUpdateNotifications,
+  createInAppNotification
 } = require('../services/notificationService');
 const path = require('path');
 const fs = require('fs');
@@ -355,6 +356,33 @@ router.put('/orders/:id/assign-delivery', (req, res) => {
       previousAgent: prevAgentName || null
     });
 
+    // Real-time In-App Notification for Delivery Boy
+    try {
+      createInAppNotification({
+        recipientRole: 'delivery',
+        recipientUserId: agent?.userId || agentId,
+        title: 'New Delivery Assigned',
+        message: `Order #${order.orderId} (₹${order.totalAmount}) assigned to you. Address: ${order.shippingAddress?.houseFlat || ''}, ${order.shippingAddress?.streetArea || ''}`,
+        type: 'delivery',
+        orderId: order.orderId,
+        link: '/delivery/dashboard'
+      });
+
+      createInAppNotification({
+        recipientRole: 'customer',
+        recipientUserId: order.customerId,
+        customerId: order.customerId,
+        customerPhone: order.customerPhone,
+        title: 'Delivery Partner Assigned',
+        message: `Your order #${order.orderId} is assigned to ${agentName} (${agentPhone}).`,
+        type: 'delivery',
+        orderId: order.orderId,
+        link: `/tracking?id=${order.orderId}`
+      });
+    } catch (err) {
+      console.error('[Notification] Assign delivery notification error:', err);
+    }
+
     res.json({
       success: true,
       message: isReassigned ? `Order reassigned to ${agentName}` : `Assigned to ${agentName}`,
@@ -426,12 +454,14 @@ router.get('/products', (req, res) => {
 
 router.post('/products', (req, res) => {
   try {
-    const { name, category, shortDescription, description, ingredients, price, originalPrice, weight, weights, stock, lowStockThreshold, isFeatured, isActive, isBestSeller, isNew, image, tags } = req.body;
+    const { name, category, shortDescription, description, ingredients, price, originalPrice, weight, weights, stock, lowStockThreshold, isFeatured, isActive, isBestSeller, isNew, image, images, sku, tags } = req.body;
     if (!name || !price || !category) return res.status(400).json({ success: false, message: 'Name, price, and category are required' });
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const numPrice = Number(price); const numOriginal = originalPrice ? Number(originalPrice) : numPrice;
+    const generatedSku = sku ? sku.trim() : `BPS-${(category || 'FLR').slice(0, 3).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`;
+    const productImages = Array.isArray(images) && images.length > 0 ? images : (image ? [image] : []);
     const newProduct = db.Products.insertOne({
-      name, slug, category, shortDescription: shortDescription || '', description: description || '', ingredients: ingredients || '',
+      name, slug, category, sku: generatedSku, shortDescription: shortDescription || '', description: description || '', ingredients: ingredients || '',
       price: numPrice, originalPrice: numOriginal,
       discountPercent: numOriginal > numPrice ? Math.round(((numOriginal - numPrice) / numOriginal) * 100) : 0,
       weight: weight || '5 KG',
@@ -439,9 +469,9 @@ router.post('/products', (req, res) => {
       stock: Number(stock) || 0, lowStockThreshold: Number(lowStockThreshold) || 5,
       rating: 0, reviewCount: 0, isFeatured: Boolean(isFeatured), isBestSeller: Boolean(isBestSeller), isNew: Boolean(isNew),
       isActive: isActive !== undefined ? Boolean(isActive) : true,
-      image: image || '', images: image ? [image] : [], tags: tags || []
+      image: productImages[0] || image || '', images: productImages, tags: tags || []
     });
-    logAdminAction(req.user, 'PRODUCT_CREATED', { name, price, category });
+    logAdminAction(req.user, 'PRODUCT_CREATED', { name, price, category, sku: generatedSku });
     res.status(201).json({ success: true, message: 'Product created successfully', product: newProduct });
   } catch (err) { res.status(500).json({ success: false, message: 'Failed to create product' }); }
 });
@@ -458,6 +488,9 @@ router.put('/products/:id', (req, res) => {
     if (updates.lowStockThreshold !== undefined) updates.lowStockThreshold = Number(updates.lowStockThreshold);
     if (updates.price && updates.originalPrice && updates.originalPrice > updates.price) {
       updates.discountPercent = Math.round(((updates.originalPrice - updates.price) / updates.originalPrice) * 100);
+    }
+    if (updates.images && Array.isArray(updates.images) && updates.images.length > 0) {
+      if (!updates.image) updates.image = updates.images[0];
     }
     const updated = db.Products.updateById(id, updates);
     logAdminAction(req.user, 'PRODUCT_UPDATED', { id, name: existing.name });
@@ -582,6 +615,68 @@ router.delete('/offers/:id', (req, res) => {
     logAdminAction(req.user, 'OFFER_DELETED', { id: req.params.id, name: offer.name });
     res.json({ success: true, message: 'Offer deleted' });
   } catch (err) { res.status(500).json({ success: false, message: 'Failed to delete offer' }); }
+});
+
+// Helper to generate an authentic unique coupon code e.g. BPS7K4M2, FRESH8Q2, MILL5X9
+function generateUniqueCouponCode(prefixChoice = 'BPS') {
+  const prefixes = ['BPS', 'FRESH', 'MILL'];
+  const prefix = prefixes.includes(prefixChoice) ? prefixChoice : prefixes[Math.floor(Math.random() * prefixes.length)];
+  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  for (let attempt = 0; attempt < 50; attempt++) {
+    let suffix = '';
+    const lengthNeeded = 8 - prefix.length;
+    for (let i = 0; i < lengthNeeded; i++) {
+      suffix += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const code = `${prefix}${suffix}`;
+    const exists = db.Offers.findOne(o => o.code && o.code.toUpperCase() === code);
+    if (!exists) return code;
+  }
+  return `BPS${Date.now().toString(36).toUpperCase().slice(-5)}`;
+}
+
+router.post('/offers/generate-coupon', (req, res) => {
+  try {
+    const { prefix, discountType, discountValue, minOrderValue, maxDiscount, expiryDays, usageLimit, description, bannerText } = req.body;
+
+    if (!discountValue || Number(discountValue) <= 0) {
+      return res.status(400).json({ success: false, message: 'Please specify a valid discount value.' });
+    }
+
+    const code = generateUniqueCouponCode(prefix);
+    const isPercent = discountType === 'percentage';
+    const now = new Date();
+    const days = Number(expiryDays) || 30;
+    const expiryDate = new Date(now.getTime() + days * 86400000);
+
+    const newCoupon = db.Offers.insertOne({
+      name: `${isPercent ? `${discountValue}% OFF` : `₹${discountValue} Flat OFF`} (${code})`,
+      code,
+      discountPercent: isPercent ? Number(discountValue) : 0,
+      flatDiscount: !isPercent ? Number(discountValue) : 0,
+      minOrderValue: Number(minOrderValue) || 0,
+      maxDiscount: isPercent ? (Number(maxDiscount) || 0) : 0,
+      usageLimit: Number(usageLimit) || 100,
+      timesUsed: 0,
+      startDate: now.toISOString(),
+      endDate: expiryDate.toISOString(),
+      description: description || `Enjoy ${isPercent ? `${discountValue}% discount` : `₹${discountValue} off`} on fresh stone-ground flours.`,
+      bannerText: bannerText || `Use code ${code} for savings!`,
+      isActive: true,
+      isAutoGenerated: true
+    });
+
+    logAdminAction(req.user, 'COUPON_GENERATED', { code, discountValue, isPercent });
+
+    res.status(201).json({
+      success: true,
+      message: `Coupon code '${code}' generated successfully!`,
+      coupon: newCoupon
+    });
+  } catch (err) {
+    console.error('Error generating coupon:', err);
+    res.status(500).json({ success: false, message: 'Failed to generate coupon' });
+  }
 });
 
 // ──────────────────────────────────────────────

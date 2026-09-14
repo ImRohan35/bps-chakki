@@ -277,7 +277,8 @@ export default function App() {
             mode="login"
             navigate={navigate}
             onAuthSuccess={(user) => {
-              if (user.role === 'delivery') navigate('delivery');
+              if (user.role === 'admin' || user.role === 'super_admin') navigate('admin');
+              else if (user.role === 'delivery') navigate('delivery');
               else navigate('home');
             }}
           />
@@ -291,12 +292,31 @@ export default function App() {
           />
         )}
 
-        {route === 'admin-login' && <AdminLogin navigate={navigate} />}
+        {route === 'admin-login' && (
+          isAdmin ? <AdminPanel navigate={navigate} /> : <AdminLogin navigate={navigate} />
+        )}
 
-        {(route === 'admin-dashboard' || route === 'admin') && <AdminPanel navigate={navigate} />}
+        {(route === 'admin-dashboard' || route === 'admin') && (
+          isAdmin ? (
+            <AdminPanel navigate={navigate} />
+          ) : (
+            <AuthPages
+              mode="login"
+              navigate={navigate}
+              onAuthSuccess={(user) => {
+                if (user.role === 'admin' || user.role === 'super_admin') navigate('admin');
+                else navigate('home');
+              }}
+            />
+          )
+        )}
 
         {(route === 'delivery' || route === 'delivery-dashboard' || route === 'delivery-login') && (
-          <DeliveryPortal navigate={navigate} initialMode={route === 'delivery-login' ? 'login' : 'dashboard'} />
+          (isDelivery || isAdmin) ? (
+            <DeliveryPortal navigate={navigate} initialMode="dashboard" />
+          ) : (
+            <DeliveryPortal navigate={navigate} initialMode="login" />
+          )
         )}
 
         {['return-policy', 'delivery-info', 'terms', 'privacy'].includes(route) && (

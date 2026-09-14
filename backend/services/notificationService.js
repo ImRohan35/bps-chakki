@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const db = require('../config/db');
+const { broadcastNotification } = require('./notificationStream');
 
 // ─────────────────────────────────────────────────────────────
 // 1. ENVIRONMENT & URL RESOLUTION
@@ -151,6 +152,45 @@ function recordNotificationLog(order, { notificationType, channel, result }) {
   }
 
   return logEntry;
+}
+
+/**
+ * Creates and saves an in-app notification and immediately broadcasts it via SSE
+ */
+function createInAppNotification({
+  recipientRole = 'customer',
+  recipientUserId = null,
+  customerId = null,
+  customerPhone = null,
+  title,
+  message,
+  type = 'order',
+  orderId = null,
+  link = null,
+  data = null
+}) {
+  try {
+    const doc = {
+      recipientRole,
+      recipientUserId,
+      customerId,
+      customerPhone,
+      title,
+      message,
+      type,
+      orderId,
+      link,
+      data,
+      isRead: false,
+      createdAt: new Date().toISOString()
+    };
+    const saved = db.Notifications.insertOne(doc);
+    broadcastNotification({ role: recipientRole, userId: recipientUserId }, saved);
+    return saved;
+  } catch (err) {
+    console.error('[InApp Notification Error]:', err.message);
+    return null;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -945,6 +985,32 @@ ${BRAND_NAME} Team`;
     result: results.email
   });
 
+  // Real-time In-App Notifications
+  try {
+    createInAppNotification({
+      recipientRole: 'customer',
+      recipientUserId: order.customerId,
+      customerId: order.customerId,
+      customerPhone: customerPhone,
+      title: 'Order Placed!',
+      message: `Your order #${order.orderId} of ${productName} (₹${order.totalAmount}) was placed successfully.`,
+      type: 'order',
+      orderId: order.orderId,
+      link: `/tracking?id=${order.orderId}`
+    });
+
+    createInAppNotification({
+      recipientRole: 'admin',
+      title: 'New Order Received',
+      message: `Order #${order.orderId} from ${customerName} (₹${order.totalAmount}) placed.`,
+      type: 'order',
+      orderId: order.orderId,
+      link: `/admin/orders?id=${order.orderId}`
+    });
+  } catch (err) {
+    console.error('[Notification] In-app notification creation error:', err);
+  }
+
   return results;
 }
 
@@ -1084,6 +1150,23 @@ Thank you for shopping with BPS!`;
     result: results.email
   });
 
+  // Real-time In-App Notification
+  try {
+    createInAppNotification({
+      recipientRole: 'customer',
+      recipientUserId: order.customerId,
+      customerId: order.customerId,
+      customerPhone: customerPhone,
+      title: 'Order Confirmed!',
+      message: `Order #${order.orderId} confirmed! Our stone chakki is grinding your fresh flour.`,
+      type: 'order',
+      orderId: order.orderId,
+      link: `/tracking?id=${order.orderId}`
+    });
+  } catch (err) {
+    console.error('[Notification] Confirmation in-app notification error:', err);
+  }
+
   return results;
 }
 
@@ -1174,6 +1257,32 @@ BPS Team`;
     channel: 'Admin Email',
     result: results.adminEmail
   });
+
+  // Real-time In-App Notification
+  try {
+    createInAppNotification({
+      recipientRole: 'customer',
+      recipientUserId: order.customerId,
+      customerId: order.customerId,
+      customerPhone: customerPhone,
+      title: 'Order Cancelled',
+      message: `Order #${order.orderId} was cancelled.`,
+      type: 'order',
+      orderId: order.orderId,
+      link: `/tracking?id=${order.orderId}`
+    });
+
+    createInAppNotification({
+      recipientRole: 'admin',
+      title: 'Order Cancelled',
+      message: `Order #${order.orderId} cancelled by ${cancelledBy}. Reason: ${reason || 'N/A'}`,
+      type: 'order',
+      orderId: order.orderId,
+      link: `/admin/orders?id=${order.orderId}`
+    });
+  } catch (err) {
+    console.error('[Notification] Cancellation in-app notification error:', err);
+  }
 
   return results;
 }
@@ -1268,6 +1377,43 @@ BPS Team`;
     result: results.email
   });
 
+  // Real-time In-App Notification
+  try {
+    createInAppNotification({
+      recipientRole: 'customer',
+      recipientUserId: order.customerId,
+      customerId: order.customerId,
+      customerPhone: customerPhone,
+      title: `Order: ${newStatus}`,
+      message: statusDescription,
+      type: 'order',
+      orderId: order.orderId,
+      link: `/tracking?id=${order.orderId}`
+    });
+
+    if (newStatus === 'Delivered') {
+      createInAppNotification({
+        recipientRole: 'admin',
+        title: 'Order Delivered',
+        message: `Order #${order.orderId} delivered! COD collected: ₹${order.totalAmount}`,
+        type: 'order',
+        orderId: order.orderId,
+        link: `/admin/orders?id=${order.orderId}`
+      });
+    } else if (newStatus === 'Out for Delivery') {
+      createInAppNotification({
+        recipientRole: 'admin',
+        title: 'Out for Delivery',
+        message: `Order #${order.orderId} is out for delivery.`,
+        type: 'order',
+        orderId: order.orderId,
+        link: `/admin/orders?id=${order.orderId}`
+      });
+    }
+  } catch (err) {
+    console.error('[Notification] Status update in-app notification error:', err);
+  }
+
   return results;
 }
 
@@ -1355,5 +1501,6 @@ module.exports = {
   sendOrderConfirmationNotifications,
   sendOrderCancelledNotifications,
   sendOrderStatusUpdateNotifications,
-  sendAdminOrderDeliveredEmail
+  sendAdminOrderDeliveredEmail,
+  createInAppNotification
 };

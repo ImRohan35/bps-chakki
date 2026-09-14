@@ -8,9 +8,17 @@ import {
   Truck,
   Phone,
   CheckCircle2,
-  Key
+  Key,
+  HelpCircle,
+  MessageSquare,
+  Send,
+  X,
+  Printer,
+  Share2,
+  Clock
 } from 'lucide-react';
 import OrderTimeline from '../components/OrderTimeline';
+import InvoiceModal from '../components/InvoiceModal';
 import { useCart } from '../context/CartContext';
 import { fetchApi } from '../utils/api';
 
@@ -26,7 +34,42 @@ export default function OrderTracking({ orderId, navigate, onReportIssue }) {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [showSupportModal, setShowSupportModal] = useState(false);
+  const [supportMsg, setSupportMsg] = useState('');
+  const [sendingSupport, setSendingSupport] = useState(false);
+  const [supportSuccess, setSupportSuccess] = useState('');
+  const [showInvoice, setShowInvoice] = useState(false);
   const { addToCart } = useCart();
+
+  const handleSendSupport = async (e) => {
+    e.preventDefault();
+    if (!supportMsg.trim() || !order) return;
+    setSendingSupport(true);
+    try {
+      const res = await fetchApi('/public/contact', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: order.customerName || order.shippingAddress?.name || 'Customer',
+          phone: order.customerPhone || order.shippingAddress?.mobile || '',
+          email: order.customerEmail || '',
+          orderId: order.orderId || order._id,
+          message: supportMsg.trim()
+        })
+      });
+      if (res.success) {
+        setSupportSuccess('Support inquiry submitted! Our team will contact you shortly.');
+        setTimeout(() => {
+          setShowSupportModal(false);
+          setSupportSuccess('');
+          setSupportMsg('');
+        }, 2200);
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to submit support inquiry');
+    } finally {
+      setSendingSupport(false);
+    }
+  };
 
   useEffect(() => {
     const id = orderId || getParamId();
@@ -199,10 +242,35 @@ export default function OrderTracking({ orderId, navigate, onReportIssue }) {
             <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>
               Payment: {order.paymentStatus || 'COD Pending'}
             </span>
+            {order.millingSlot && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--primary-fresh-green, #2E8B57)', fontWeight: 700, backgroundColor: 'rgba(46,139,87,0.08)', padding: '2px 8px', borderRadius: '4px' }}>
+                <Clock size={13} /> {order.millingSlot}
+              </span>
+            )}
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setShowInvoice(true)}
+            className="btn btn-sm btn-outline"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+          >
+            <Printer size={14} /> Print Bill / Invoice
+          </button>
+
+          <button
+            onClick={() => {
+              if (!order) return;
+              const text = `🌾 *BPS Fresh Mills - Order #${order.orderId}* 🌾\nStatus: ${order.orderStatus}\nTotal: ₹${order.totalAmount} (${order.paymentMethod || 'COD'})\nBatch: ${order.millingSlot || 'Fresh Milling'}\nLakhanpur, Cholapur, Varanasi 221101.\nLive tracking: ${window.location.origin}/track?id=${order.orderId}`;
+              window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+            }}
+            className="btn btn-sm"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#25D366', color: '#fff' }}
+          >
+            <Share2 size={14} /> WhatsApp Share
+          </button>
+
           {canCancel && (
             <button
               onClick={handleCancelOrder}
@@ -259,7 +327,9 @@ export default function OrderTracking({ orderId, navigate, onReportIssue }) {
               <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.9rem' }}>
                 <div>
                   <div style={{ fontWeight: 700 }}>{item.name}</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{item.weight} × {item.quantity}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    {item.weight} {item.texture ? `• ${item.texture === 'Fine' ? 'बारीक' : item.texture === 'Coarse' ? 'मोटा' : 'रेगुलर'}` : ''} × {item.quantity}
+                  </div>
                 </div>
                 <div style={{ fontWeight: 700 }}>₹{item.subtotal || item.price * item.quantity}</div>
               </div>
@@ -331,6 +401,109 @@ export default function OrderTracking({ orderId, navigate, onReportIssue }) {
           )}
         </div>
       </div>
+
+      {/* Need Help with this Order? Card */}
+      <div
+        style={{
+          marginTop: '2rem',
+          backgroundColor: 'var(--bg-card)',
+          padding: '1.5rem 2rem',
+          borderRadius: 'var(--radius-lg)',
+          border: '1px solid var(--border-subtle)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1.25rem'
+        }}
+      >
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.25rem' }}>
+            <HelpCircle size={20} color="var(--nature-green)" />
+            <h4 style={{ margin: 0, fontWeight: 800, fontSize: '1.1rem', color: 'var(--text-primary)' }}>
+              Need Help with this Order?
+            </h4>
+          </div>
+          <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+            Have questions about preparation time, delivery address change, or freshly milled grains?
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <a
+            href="tel:+919876543210"
+            className="btn btn-outline btn-sm"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Phone size={15} /> Call Store
+          </a>
+          <a
+            href={`https://wa.me/919876543210?text=${encodeURIComponent(`Hi BPS Fresh Mills, I need help with my Order #${order.orderId || order._id}`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-outline btn-sm"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', borderColor: '#25D366', color: '#25D366' }}
+          >
+            <MessageSquare size={15} /> WhatsApp
+          </a>
+          <button
+            onClick={() => setShowSupportModal(true)}
+            className="btn btn-primary btn-sm"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Send size={15} /> Submit Support Inquiry
+          </button>
+        </div>
+      </div>
+
+      {/* Direct Order Support Modal */}
+      {showSupportModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(23,17,15,0.7)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', padding: '2rem', maxWidth: '520px', width: '100%', boxShadow: 'var(--shadow-lg)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div>
+                <h3 style={{ fontWeight: 800, margin: 0 }}>Order Support Inquiry</h3>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Order #{order.orderId || order._id}</div>
+              </div>
+              <button onClick={() => setShowSupportModal(false)}><X size={20} /></button>
+            </div>
+
+            {supportSuccess ? (
+              <div style={{ padding: '1.25rem', backgroundColor: 'var(--nature-light)', color: 'var(--nature-green)', borderRadius: 'var(--radius-sm)', textAlign: 'center', fontWeight: 600 }}>
+                {supportSuccess}
+              </div>
+            ) : (
+              <form onSubmit={handleSendSupport} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
+                  Enter your question or issue below. Your message will directly notify our store manager and live staff.
+                </p>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.3rem' }}>Your Message *</label>
+                  <textarea
+                    rows="4"
+                    placeholder="Type your question or delivery concern..."
+                    value={supportMsg}
+                    onChange={e => setSupportMsg(e.target.value)}
+                    required
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                  <button type="submit" className="btn btn-primary" disabled={sendingSupport} style={{ flex: 1 }}>
+                    {sendingSupport ? 'Submitting...' : 'Send Inquiry'}
+                  </button>
+                  <button type="button" onClick={() => setShowSupportModal(false)} className="btn btn-outline" style={{ flex: 1 }}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Printable Invoice Modal */}
+      {showInvoice && <InvoiceModal order={order} onClose={() => setShowInvoice(false)} />}
     </div>
   );
 }

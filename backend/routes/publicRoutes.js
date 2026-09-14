@@ -30,27 +30,44 @@ router.get('/settings', (req, res) => {
   });
 });
 
-// SUBMIT CONTACT MESSAGE
+// SUBMIT CONTACT MESSAGE / CUSTOMER SUPPORT TICKET
 router.post('/contact', (req, res) => {
-  const { name, email, phone, message } = req.body;
+  const { name, email, phone, message, orderId } = req.body;
   if (!name || !phone || !message) {
     return res.status(400).json({ success: false, message: 'Name, phone number and message are required.' });
   }
 
-  // Save customer inquiry
-  db.Inquiries.insertOne({
+  // Save customer inquiry / ticket
+  const ticket = db.Inquiries.insertOne({
     name: name.trim(),
     phone: phone.trim(),
     email: (email || '').trim().toLowerCase(),
     message: message.trim(),
+    orderId: orderId ? orderId.trim() : null,
     status: 'new',
     createdAt: new Date().toISOString()
   });
 
+  // Trigger in-app notification for Store Admin
+  try {
+    const { createInAppNotification } = require('../services/notificationService');
+    createInAppNotification({
+      recipientRole: 'admin',
+      title: orderId ? `Support Ticket: Order #${orderId}` : 'New Customer Inquiry',
+      message: `${name}: ${message.slice(0, 90)}${message.length > 90 ? '…' : ''}`,
+      type: 'support',
+      orderId: orderId || null,
+      link: '/admin'
+    });
+  } catch (err) {
+    console.error('[Inquiry Notification Error]:', err);
+  }
+
   // Acknowledge received message
   res.json({
     success: true,
-    message: `Thank you, ${name}! Your message has been received. Our team will contact you shortly on ${phone}.`
+    message: `Thank you, ${name}! Your ${orderId ? 'support request' : 'inquiry'} has been received. Our team will contact you shortly on ${phone}.`,
+    ticket
   });
 });
 

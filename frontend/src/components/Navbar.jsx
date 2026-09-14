@@ -17,6 +17,7 @@ import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useTheme } from '../context/ThemeContext';
 import ThemeSwitcher from './ThemeSwitcher';
+import NotificationBell from './NotificationBell';
 
 export default function Navbar({ currentRoute, navigate, onOpenSearch }) {
   const { user, isAuthenticated, isAdmin, isDelivery, logout } = useAuth();
@@ -187,6 +188,9 @@ export default function Navbar({ currentRoute, navigate, onOpenSearch }) {
 
             {/* Theme Toggle System (Light / Dark / System Default) */}
             <ThemeSwitcher variant="dropdown" />
+
+            {/* Real-Time Notification Bell */}
+            {isAuthenticated && <NotificationBell navigate={navigate} role={user?.role || 'customer'} />}
 
             {/* Search Trigger */}
             <button

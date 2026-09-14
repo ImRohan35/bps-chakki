@@ -18,9 +18,10 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { fetchApi } from '../utils/api';
+import NotificationBell from '../components/NotificationBell';
 
 export default function DeliveryPortal({ navigate, initialMode = 'dashboard' }) {
-  const { user, isDelivery, isAdmin, login, logout } = useAuth();
+  const { user, isDelivery, isAdmin, logout, updateUser } = useAuth();
   const [deliveries, setDeliveries] = useState([]);
   const [summary, setSummary] = useState({ totalAssigned: 0, pendingCodTotal: 0, collectedCodTotal: 0 });
   const [loading, setLoading] = useState(false);
@@ -57,19 +58,46 @@ export default function DeliveryPortal({ navigate, initialMode = 'dashboard' }) 
     }
   }, [isDelivery, isAdmin]);
 
+  // Live SSE stream for real-time delivery assignment updates
+  useEffect(() => {
+    if (!isDelivery && !isAdmin) return;
+    const token = localStorage.getItem('bps_token');
+    const apiBase = (import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '');
+    const streamUrl = `${apiBase}/notifications/stream${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+
+    let eventSource;
+    try {
+      eventSource = new EventSource(streamUrl);
+      eventSource.onmessage = (e) => {
+        try {
+          const payload = JSON.parse(e.data);
+          if (payload.type === 'NOTIFICATION') {
+            loadDeliveries();
+          }
+        } catch {}
+      };
+    } catch {}
+
+    return () => {
+      if (eventSource) eventSource.close();
+    };
+  }, [isDelivery, isAdmin]);
+
   const handleDeliveryLogin = async (e) => {
     e.preventDefault();
     setLoginError('');
     setLoggingIn(true);
     try {
-      const res = await login(loginPhone.trim(), loginPassword);
-      if (res.success) {
-        if (res.user.role !== 'delivery' && res.user.role !== 'admin') {
-          setLoginError('Access denied: This account does not have delivery executive permissions.');
-          logout();
-          return;
-        }
+      const res = await fetchApi('/auth/delivery-login', {
+        method: 'POST',
+        body: JSON.stringify({ identifier: loginPhone.trim(), password: loginPassword })
+      });
+      if (res.success && res.token) {
+        localStorage.setItem('bps_token', res.token);
+        if (updateUser) updateUser(res.user);
         loadDeliveries();
+      } else {
+        setLoginError(res.message || 'Login failed. Please check your delivery credentials.');
       }
     } catch (err) {
       setLoginError(err.message || 'Login failed. Please check your credentials.');
@@ -281,6 +309,7 @@ export default function DeliveryPortal({ navigate, initialMode = 'dashboard' }) 
         </div>
 
         <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+          <NotificationBell navigate={navigate} role="delivery" />
           <button onClick={() => { logout(); navigate('delivery/login'); }} className="btn btn-sm btn-outline" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
             <LogOut size={14} /> Logout
           </button>

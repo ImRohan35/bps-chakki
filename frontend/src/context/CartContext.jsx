@@ -53,8 +53,9 @@ export function CartProvider({ children }) {
     }
   }, [coupon]);
 
-  const addToCart = (product, selectedWeight, qty = 1) => {
+  const addToCart = (product, selectedWeight, qty = 1, selectedTexture = 'Medium') => {
     const weight = selectedWeight || product.weight || '5 KG';
+    const texture = selectedTexture || 'Medium';
     let unitPrice = product.price;
 
     if (product.weights && product.weights.length > 0) {
@@ -69,7 +70,9 @@ export function CartProvider({ children }) {
 
     let message = '';
     setCartItems(prev => {
-      const existingIdx = prev.findIndex(item => item.productId === product._id && item.weight === weight);
+      const existingIdx = prev.findIndex(
+        item => item.productId === product._id && item.weight === weight && (item.texture || 'Medium') === texture
+      );
       if (existingIdx > -1) {
         const currentItem = prev[existingIdx];
         const newQty = currentItem.quantity + qty;
@@ -85,7 +88,7 @@ export function CartProvider({ children }) {
           quantity: newQty,
           maxStock: availableStock
         };
-        message = `Updated quantity for ${product.name}`;
+        message = `Updated quantity for ${product.name} (${texture})`;
         return updated;
       } else {
         if (qty > availableStock) {
@@ -93,13 +96,14 @@ export function CartProvider({ children }) {
           return prev;
         }
 
-        message = `Added ${product.name} (${weight}) to cart!`;
+        message = `Added ${product.name} (${weight}, ${texture}) to cart!`;
         return [
           ...prev,
           {
             productId: product._id,
             name: product.name,
             weight,
+            texture,
             price: unitPrice,
             quantity: qty,
             maxStock: availableStock,
@@ -112,15 +116,15 @@ export function CartProvider({ children }) {
     return { success: true, message };
   };
 
-  const updateQuantity = (productId, weight, newQty) => {
+  const updateQuantity = (productId, weight, newQty, texture = 'Medium') => {
     if (newQty <= 0) {
-      removeFromCart(productId, weight);
+      removeFromCart(productId, weight, texture);
       return;
     }
 
     setCartItems(prev =>
       prev.map(item => {
-        if (item.productId === productId && item.weight === weight) {
+        if (item.productId === productId && item.weight === weight && (item.texture || 'Medium') === texture) {
           if (newQty > item.maxStock) {
             return { ...item, quantity: item.maxStock };
           }
@@ -131,8 +135,48 @@ export function CartProvider({ children }) {
     );
   };
 
-  const removeFromCart = (productId, weight) => {
-    setCartItems(prev => prev.filter(item => !(item.productId === productId && item.weight === weight)));
+  const removeFromCart = (productId, weight, texture = 'Medium') => {
+    setCartItems(prev =>
+      prev.filter(
+        item => !(item.productId === productId && item.weight === weight && (item.texture || 'Medium') === texture)
+      )
+    );
+  };
+
+  const reorderItems = (items) => {
+    if (!Array.isArray(items) || items.length === 0) return { success: false, count: 0 };
+    let addedCount = 0;
+    setCartItems(prev => {
+      const updated = [...prev];
+      items.forEach(pastItem => {
+        const pId = pastItem.productId || pastItem._id;
+        const weight = pastItem.weight || '5 KG';
+        const texture = pastItem.texture || 'Medium';
+        const qty = pastItem.quantity || 1;
+        const price = pastItem.price || 0;
+
+        const idx = updated.findIndex(
+          it => it.productId === pId && it.weight === weight && (it.texture || 'Medium') === texture
+        );
+        if (idx > -1) {
+          updated[idx].quantity += qty;
+        } else {
+          updated.push({
+            productId: pId,
+            name: pastItem.name,
+            weight,
+            texture,
+            price,
+            quantity: qty,
+            maxStock: pastItem.stock || 50,
+            image: pastItem.image || ''
+          });
+        }
+        addedCount++;
+      });
+      return updated;
+    });
+    return { success: true, count: addedCount };
   };
 
   const clearCart = () => {
@@ -185,6 +229,7 @@ export function CartProvider({ children }) {
         updateQuantity,
         removeFromCart,
         clearCart,
+        reorderItems,
         applyCoupon,
         removeCoupon
       }}

@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "postinstall": "npm install --prefix backend",
-    "build": "echo 'Frontend pre-built and ready in dist'",
+    "build": "npm install --prefix frontend && npm run build --prefix frontend && npm install --prefix backend",
     "start": "node backend/server.js",
     "dev:backend": "npm run dev --prefix backend",
     "dev:frontend": "npm run dev --prefix frontend"

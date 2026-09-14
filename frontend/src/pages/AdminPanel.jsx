@@ -6,10 +6,12 @@ import {
   FileText, Star, Bell, Phone, TrendingUp, BarChart2, Eye, EyeOff,
   LogOut, User, RefreshCw, ChevronDown, ChevronUp, Image, Upload,
   MessageSquare, Globe, Archive, Activity, List, Download,
-  Lock, Key, Camera, MapPin, Calendar, Mail, Menu, ChevronRight, CheckCircle
+  Lock, Key, Camera, MapPin, Calendar, Mail, Menu, ChevronRight, CheckCircle, Sparkles, Printer
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import ThemeSwitcher from '../components/ThemeSwitcher';
+import NotificationBell from '../components/NotificationBell';
+import InvoiceModal from '../components/InvoiceModal';
 import { fetchApi } from '../utils/api';
 
 const API = (path, opts) => fetchApi(path, opts);
@@ -297,6 +299,61 @@ function OrdersSection() {
   const [trackingNumberInput, setTrackingNumberInput] = useState('');
   const [expectedDateInput, setExpectedDateInput] = useState('');
   const [savingTracking, setSavingTracking] = useState(false);
+  const [invoiceModalOrder, setInvoiceModalOrder] = useState(null);
+
+  const exportToCSV = () => {
+    if (!orders || orders.length === 0) {
+      alert('No orders available to export.');
+      return;
+    }
+
+    const headers = [
+      'Order ID',
+      'Date',
+      'Customer Name',
+      'Phone',
+      'Address',
+      'Items Summary',
+      'Total Amount (INR)',
+      'Order Status',
+      'Payment Mode',
+      'Payment Status',
+      'Delivery Agent'
+    ];
+
+    const rows = orders.map(o => {
+      const itemsSummary = (o.items || [])
+        .map(it => `${it.name} (${it.weight || '5 KG'}${it.texture ? ` - ${it.texture}` : ''}) x${it.quantity}`)
+        .join('; ');
+      const addr = o.shippingAddress
+        ? `${o.shippingAddress.houseFlat || ''}, ${o.shippingAddress.streetArea || ''}, ${o.shippingAddress.city || ''} ${o.shippingAddress.pincode || ''}`.replace(/"/g, '""')
+        : '';
+      const agent = o.assignedDeliveryBoy ? o.assignedDeliveryBoy.name : 'Unassigned';
+
+      return [
+        `"${o.orderId || o._id}"`,
+        `"${o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-IN') : ''}"`,
+        `"${(o.shippingAddress?.name || o.customerName || '').replace(/"/g, '""')}"`,
+        `"${o.shippingAddress?.mobile || o.customerPhone || ''}"`,
+        `"${addr}"`,
+        `"${itemsSummary.replace(/"/g, '""')}"`,
+        o.totalAmount || 0,
+        `"${o.orderStatus || ''}"`,
+        `"${o.paymentMethod || 'COD'}"`,
+        `"${o.paymentStatus || 'Pending'}"`,
+        `"${agent.replace(/"/g, '""')}"`
+      ].join(',');
+    });
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `BPS_Fresh_Mills_Orders_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   useEffect(() => {
     if (selectedOrder) {
@@ -406,8 +463,15 @@ function OrdersSection() {
           <option value="week">Last 7 Days</option>
           <option value="month">Last 30 Days</option>
         </select>
-        <button onClick={load} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0.8rem 1rem', border: '1px solid #E5E7EB', borderRadius: '8px', background: '#FFFFFF', cursor: 'pointer', fontWeight: 600, color: '#173D32' }}>
+        <button onClick={load} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0.8rem 1rem', border: '1px solid #E5E7EB', borderRadius: '8px', background: '#FFFFFF', cursor: 'pointer', fontWeight: 600, color: '#173D32' }} title="Refresh Orders">
           <RefreshCw size={16} />
+        </button>
+        <button
+          onClick={exportToCSV}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0.8rem 1.25rem', border: '1px solid #2E8B57', borderRadius: '8px', background: '#E8F5EC', cursor: 'pointer', fontWeight: 700, color: '#2E8B57' }}
+          title="Export orders to CSV"
+        >
+          <Download size={16} /> Export CSV
         </button>
       </div>
 
@@ -436,6 +500,13 @@ function OrdersSection() {
                   <td style={{ padding: '1rem' }}>
                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
                       <button onClick={() => setSelectedOrder(o)} style={{ padding: '0.45rem 0.85rem', border: '1px solid #E2E8F0', borderRadius: '6px', background: '#FFFFFF', color: '#173D32', fontWeight: 700, cursor: 'pointer' }}>View</button>
+                      <button
+                        onClick={() => setInvoiceModalOrder(o)}
+                        style={{ padding: '0.45rem 0.65rem', border: '1px solid #CBD5E1', borderRadius: '6px', background: '#FFFFFF', color: '#2E8B57', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        title="Print Bill / Invoice Slip"
+                      >
+                        <Printer size={14} /> Bill
+                      </button>
                       {o.orderStatus === 'Pending Admin Confirmation' && (
                         <button
                           onClick={() => confirmOrder(o._id)}
@@ -514,7 +585,9 @@ function OrdersSection() {
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem 0', borderBottom: i < selectedOrder.items.length - 1 ? '1px solid #E5E7EB' : 'none' }}>
                   <div>
                     <div style={{ fontWeight: 700, color: '#173D32' }}>{item.name}</div>
-                    <div style={{ fontSize: '0.9rem', color: '#667085' }}>{item.weight} × {item.quantity}</div>
+                    <div style={{ fontSize: '0.9rem', color: '#667085' }}>
+                      {item.weight} {item.texture ? `• Grind: ${item.texture === 'Fine' ? 'बारीक (Fine)' : item.texture === 'Coarse' ? 'मोटा (Coarse)' : 'रेगुलर (Medium)'}` : ''} × {item.quantity}
+                    </div>
                   </div>
                   <div style={{ fontWeight: 800, color: '#173D32' }}>{fmt(item.subtotal)}</div>
                 </div>
@@ -695,8 +768,26 @@ function OrdersSection() {
             </div>
           </div>
 
-          {['Pending Admin Confirmation', 'Order Placed', 'Confirmed', 'Processing', 'Preparing'].includes(selectedOrder.orderStatus) && (
-            <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <button
+              onClick={() => setInvoiceModalOrder(selectedOrder)}
+              style={{
+                padding: '0.65rem 1.25rem',
+                backgroundColor: '#2E8B57',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '6px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <Printer size={16} /> Print Tax Invoice / Slip
+            </button>
+
+            {['Pending Admin Confirmation', 'Order Placed', 'Confirmed', 'Processing', 'Preparing'].includes(selectedOrder.orderStatus) && (
               <button
                 onClick={() => cancelOrder(selectedOrder._id)}
                 style={{
@@ -714,9 +805,14 @@ function OrdersSection() {
               >
                 <X size={16} /> Cancel Order
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </Modal>
+      )}
+
+      {/* Printable Tax Invoice Modal */}
+      {invoiceModalOrder && (
+        <InvoiceModal order={invoiceModalOrder} onClose={() => setInvoiceModalOrder(null)} />
       )}
     </div>
   );
@@ -731,7 +827,7 @@ function ProductsSection() {
   const [catFilter, setCatFilter] = useState('All');
   const [modal, setModal] = useState(null); // null | 'add' | 'edit'
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name: '', category: '', shortDescription: '', description: '', ingredients: '', price: '', originalPrice: '', weight: '5 KG', stock: 25, lowStockThreshold: 5, isFeatured: false, isBestSeller: false, isNew: false, isActive: true, image: '' });
+  const [form, setForm] = useState({ name: '', sku: '', category: '', shortDescription: '', description: '', ingredients: '', price: '', originalPrice: '', weight: '5 KG', stock: 25, lowStockThreshold: 5, isFeatured: false, isBestSeller: false, isNew: false, isActive: true, image: '', tags: '' });
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const galleryFileRef = useRef();
@@ -753,8 +849,39 @@ function ProductsSection() {
     return matchCat && matchSearch;
   });
 
-  const openAdd = () => { setEditing(null); setForm({ name: '', category: categories[0]?.name || '', shortDescription: '', description: '', ingredients: '', price: '', originalPrice: '', weight: '5 KG', stock: 25, lowStockThreshold: 5, isFeatured: false, isBestSeller: false, isNew: false, isActive: true, image: '' }); setModal('add'); };
-  const openEdit = (p) => { setEditing(p); setForm({ ...p }); setModal('edit'); };
+  const openAdd = () => {
+    setEditing(null);
+    setForm({
+      name: '',
+      sku: '',
+      category: categories[0]?.name || '',
+      shortDescription: '',
+      description: '',
+      ingredients: '',
+      price: '',
+      originalPrice: '',
+      weight: '5 KG',
+      stock: 25,
+      lowStockThreshold: 5,
+      isFeatured: false,
+      isBestSeller: false,
+      isNew: false,
+      isActive: true,
+      image: '',
+      tags: ''
+    });
+    setModal('add');
+  };
+
+  const openEdit = (p) => {
+    setEditing(p);
+    setForm({
+      ...p,
+      sku: p.sku || '',
+      tags: Array.isArray(p.tags) ? p.tags.join(', ') : (p.tags || '')
+    });
+    setModal('edit');
+  };
 
   const handleImageUpload = async (file) => {
     if (!file) return;
@@ -783,9 +910,13 @@ function ProductsSection() {
   const save = async () => {
     setSaving(true);
     try {
+      const payload = {
+        ...form,
+        tags: typeof form.tags === 'string' ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : form.tags
+      };
       let r;
-      if (editing) r = await API(`/admin/products/${editing._id}`, { method: 'PUT', body: JSON.stringify(form) });
-      else r = await API('/admin/products', { method: 'POST', body: JSON.stringify(form) });
+      if (editing) r = await API(`/admin/products/${editing._id}`, { method: 'PUT', body: JSON.stringify(payload) });
+      else r = await API('/admin/products', { method: 'POST', body: JSON.stringify(payload) });
       if (r.success) { setModal(null); load(); }
       else alert(r.message);
     } finally { setSaving(false); }
@@ -900,6 +1031,14 @@ function ProductsSection() {
             <div>
               <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.5rem', color: '#667085', fontSize: '0.9rem' }}>Stock Quantity *</label>
               <input style={{ width: '100%', padding: '0.8rem', border: '1px solid #E5E7EB', borderRadius: '8px', outline: 'none' }} type="number" value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.5rem', color: '#667085', fontSize: '0.9rem' }}>Product SKU</label>
+              <input style={{ width: '100%', padding: '0.8rem', border: '1px solid #E5E7EB', borderRadius: '8px', outline: 'none' }} value={form.sku || ''} onChange={e => setForm(f => ({ ...f, sku: e.target.value }))} placeholder="e.g. BPS-ATT-01" />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.5rem', color: '#667085', fontSize: '0.9rem' }}>Search Tags (comma separated)</label>
+              <input style={{ width: '100%', padding: '0.8rem', border: '1px solid #E5E7EB', borderRadius: '8px', outline: 'none' }} value={form.tags || ''} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} placeholder="e.g. atta, fresh, chakki, fiber" />
             </div>
           </div>
           
@@ -1019,7 +1158,7 @@ function ProductsSection() {
           </div>
           
           <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', margin: '1.5rem 0' }}>
-            {[['isFeatured', 'Featured'], ['isActive', 'Active (Visible)']].map(([key, label]) => (
+            {[['isFeatured', 'Featured'], ['isBestSeller', 'Best Seller'], ['isNew', 'New Arrival'], ['isActive', 'Active (Visible)']].map(([key, label]) => (
               <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 700, color: '#173D32' }}>
                 <input type="checkbox" style={{ accentColor: '#2E8B57', width: '18px', height: '18px' }} checked={Boolean(form[key])} onChange={e => setForm(f => ({ ...f, [key]: e.target.checked }))} /> {label}
               </label>
@@ -1533,11 +1672,46 @@ function OffersSection() {
   const [form, setForm] = useState({ name: '', code: '', discountPercent: 0, flatDiscount: 0, minOrderValue: 0, maxDiscount: 0, description: '', startDate: '', endDate: '', isActive: true });
   const [saving, setSaving] = useState(false);
 
+  // Automatic Coupon Generator State
+  const [generateModal, setGenerateModal] = useState(false);
+  const [genForm, setGenForm] = useState({
+    prefix: 'BPS',
+    discountType: 'percentage',
+    discountValue: 10,
+    minOrderValue: 399,
+    maxDiscount: 100,
+    expiryDays: 30,
+    usageLimit: 100
+  });
+  const [generating, setGenerating] = useState(false);
+  const [generatedCoupon, setGeneratedCoupon] = useState(null);
+
   const load = () => { setLoading(true); API('/admin/offers').then(r => { if (r.success) setOffers(r.offers || []); }).finally(() => setLoading(false)); };
   useEffect(() => { load(); }, []);
 
   const openAdd = () => { setEditing(null); setForm({ name: '', code: '', discountPercent: 0, flatDiscount: 0, minOrderValue: 0, maxDiscount: 0, description: '', startDate: new Date().toISOString().slice(0, 10), endDate: '', isActive: true }); setModal(true); };
   const openEdit = (o) => { setEditing(o); setForm({ ...o, startDate: o.startDate?.slice(0, 10) || '', endDate: o.endDate?.slice(0, 10) || '' }); setModal(true); };
+
+  const handleGenerateSubmit = async (e) => {
+    e.preventDefault();
+    setGenerating(true);
+    try {
+      const res = await API('/admin/offers/generate-coupon', {
+        method: 'POST',
+        body: JSON.stringify(genForm)
+      });
+      if (res.success && res.coupon) {
+        setGeneratedCoupon(res.coupon);
+        load();
+      } else {
+        alert(res.message || 'Failed to generate coupon');
+      }
+    } catch (err) {
+      alert(err.message || 'Error generating coupon');
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -1553,9 +1727,36 @@ function OffersSection() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0 }}>Offers & Coupons ({offers.length})</h2>
-        <button onClick={openAdd} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> Create Offer</button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, color: '#173D32' }}>Offers & Coupons ({offers.length})</h2>
+          <p style={{ color: '#667085', fontSize: '0.88rem', margin: '4px 0 0' }}>Manage discounts, festival coupons, and automated codes.</p>
+        </div>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button
+            onClick={() => { setGeneratedCoupon(null); setGenerateModal(true); }}
+            style={{
+              padding: '0.7rem 1.25rem',
+              backgroundColor: '#C9A44C',
+              color: '#17202A',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: 800,
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 2px 8px rgba(201,164,76,0.3)'
+            }}
+            id="admin-generate-coupon-btn"
+          >
+            <Sparkles size={16} /> Generate Coupon
+          </button>
+          <button onClick={openAdd} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Plus size={16} /> Create Custom Offer
+          </button>
+        </div>
       </div>
       {loading ? <Loader /> : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
@@ -1609,6 +1810,166 @@ function OffersSection() {
             <button onClick={() => setModal(false)} className="btn btn-outline">Cancel</button>
             <button onClick={save} disabled={saving} className="btn btn-primary">{saving ? 'Saving…' : editing ? 'Save Changes' : 'Create Offer'}</button>
           </div>
+        </Modal>
+      )}
+
+      {/* Automatic Coupon Generation Modal */}
+      {generateModal && (
+        <Modal title="Automatic Coupon Generator" onClose={() => setGenerateModal(false)} maxWidth="520px">
+          {generatedCoupon ? (
+            <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+              <div style={{ width: 56, height: 56, borderRadius: '50%', backgroundColor: '#DEF7EC', color: '#166534', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
+                <CheckCircle2 size={32} />
+              </div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#173D32', marginBottom: '0.5rem' }}>
+                Coupon Generated Successfully!
+              </h3>
+              <p style={{ color: '#667085', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
+                This coupon is now active and can be applied by customers at checkout.
+              </p>
+              <div style={{
+                background: '#F8FAFC',
+                border: '2px dashed #C9A44C',
+                borderRadius: '12px',
+                padding: '1.25rem',
+                marginBottom: '1.5rem',
+                display: 'inline-block',
+                minWidth: '260px'
+              }}>
+                <div style={{ fontSize: '0.8rem', color: '#667085', fontWeight: 700, textTransform: 'uppercase' }}>Coupon Code</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#173D32', letterSpacing: '3px', margin: '4px 0' }}>
+                  {generatedCoupon.code}
+                </div>
+                <div style={{ fontSize: '0.85rem', color: '#2E8B57', fontWeight: 700 }}>
+                  {generatedCoupon.discountPercent > 0 ? `${generatedCoupon.discountPercent}% Discount` : `₹${generatedCoupon.flatDiscount} Flat Discount`}
+                  {generatedCoupon.minOrderValue > 0 ? ` (Min. ₹${generatedCoupon.minOrderValue})` : ''}
+                </div>
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => { setGeneratedCoupon(null); setGenerateModal(false); }}
+                  className="btn btn-primary"
+                  style={{ width: '100%', padding: '0.75rem' }}
+                >
+                  Done & View Offers
+                </button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleGenerateSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <p style={{ fontSize: '0.88rem', color: '#667085', margin: 0 }}>
+                Specify parameters to automatically generate an authentic, unique coupon code verified against database uniqueness.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <FieldRow label="Code Prefix" required>
+                  <select
+                    style={inputStyle}
+                    value={genForm.prefix}
+                    onChange={e => setGenForm(f => ({ ...f, prefix: e.target.value }))}
+                  >
+                    <option value="BPS">BPS (e.g. BPS7K4M2)</option>
+                    <option value="FRESH">FRESH (e.g. FRESH8Q2)</option>
+                    <option value="MILL">MILL (e.g. MILL5X9)</option>
+                  </select>
+                </FieldRow>
+
+                <FieldRow label="Discount Type" required>
+                  <select
+                    style={inputStyle}
+                    value={genForm.discountType}
+                    onChange={e => setGenForm(f => ({ ...f, discountType: e.target.value }))}
+                  >
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="flat">Flat Amount (₹)</option>
+                  </select>
+                </FieldRow>
+
+                <FieldRow label={genForm.discountType === 'percentage' ? 'Discount % *' : 'Flat Discount (₹) *'} required>
+                  <input
+                    style={inputStyle}
+                    type="number"
+                    min="1"
+                    max={genForm.discountType === 'percentage' ? 100 : 1000}
+                    value={genForm.discountValue}
+                    onChange={e => setGenForm(f => ({ ...f, discountValue: e.target.value }))}
+                    required
+                  />
+                </FieldRow>
+
+                <FieldRow label="Min. Order Value (₹)">
+                  <input
+                    style={inputStyle}
+                    type="number"
+                    min="0"
+                    value={genForm.minOrderValue}
+                    onChange={e => setGenForm(f => ({ ...f, minOrderValue: e.target.value }))}
+                  />
+                </FieldRow>
+
+                {genForm.discountType === 'percentage' && (
+                  <FieldRow label="Max. Cap (₹)">
+                    <input
+                      style={inputStyle}
+                      type="number"
+                      min="0"
+                      value={genForm.maxDiscount}
+                      onChange={e => setGenForm(f => ({ ...f, maxDiscount: e.target.value }))}
+                    />
+                  </FieldRow>
+                )}
+
+                <FieldRow label="Expiry Duration">
+                  <select
+                    style={inputStyle}
+                    value={genForm.expiryDays}
+                    onChange={e => setGenForm(f => ({ ...f, expiryDays: e.target.value }))}
+                  >
+                    <option value="7">7 Days</option>
+                    <option value="15">15 Days</option>
+                    <option value="30">30 Days</option>
+                    <option value="60">60 Days</option>
+                    <option value="90">90 Days</option>
+                  </select>
+                </FieldRow>
+
+                <FieldRow label="Usage Limit">
+                  <input
+                    style={inputStyle}
+                    type="number"
+                    min="1"
+                    value={genForm.usageLimit}
+                    onChange={e => setGenForm(f => ({ ...f, usageLimit: e.target.value }))}
+                  />
+                </FieldRow>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                <button type="button" onClick={() => setGenerateModal(false)} className="btn btn-outline">
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={generating}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    backgroundColor: '#C9A44C',
+                    color: '#17202A',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <Sparkles size={16} /> {generating ? 'Generating…' : 'Generate Unique Code'}
+                </button>
+              </div>
+            </form>
+          )}
         </Modal>
       )}
     </div>
@@ -1996,6 +2357,122 @@ function ReportsSection() {
               {(report.lowStock || []).length === 0 && <div style={{ color: 'var(--nature-green)', fontSize: '0.88rem', textAlign: 'center', padding: '1rem' }}>✅ All products well stocked</div>}
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── 10b. NOTIFICATIONS SECTION ──────────────────────────────────
+function NotificationsSection({ navigate }) {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await API('/notifications');
+      if (res.success) setNotifications(res.notifications || []);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleMarkRead = async (id) => {
+    await API(`/notifications/${id}/read`, { method: 'PUT' });
+    setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
+  };
+
+  const handleMarkAllRead = async () => {
+    await API('/notifications/mark-all-read', { method: 'PUT' });
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+  };
+
+  const filtered = notifications.filter(n => {
+    if (filter === 'all') return true;
+    return n.type === filter;
+  });
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, color: '#173D32' }}>Live Notifications & Store Alerts</h2>
+          <p style={{ color: '#667085', fontSize: '0.88rem', margin: '4px 0 0' }}>Real-time stream of incoming customer orders, delivery updates, and store events.</p>
+        </div>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button onClick={load} className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <RefreshCw size={15} /> Refresh
+          </button>
+          <button onClick={handleMarkAllRead} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Check size={16} /> Mark All as Read
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', overflowX: 'auto', paddingBottom: '4px' }}>
+        {['all', 'order', 'delivery', 'stock', 'return', 'support'].map(tab => (
+          <button
+            key={tab}
+            onClick={() => setFilter(tab)}
+            style={{
+              padding: '0.45rem 1rem',
+              borderRadius: '999px',
+              border: 'none',
+              fontWeight: 700,
+              fontSize: '0.82rem',
+              cursor: 'pointer',
+              textTransform: 'capitalize',
+              backgroundColor: filter === tab ? '#2E8B57' : '#F1F5F9',
+              color: filter === tab ? '#FFFFFF' : '#475569'
+            }}
+          >
+            {tab === 'all' ? 'All Alerts' : tab}
+          </button>
+        ))}
+      </div>
+
+      {loading ? <Loader /> : (
+        <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', overflow: 'hidden' }}>
+          {filtered.length === 0 ? (
+            <EmptyState message="No notifications matching this filter" icon={Bell} />
+          ) : (
+            filtered.map(n => (
+              <div
+                key={n._id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '1rem 1.25rem',
+                  borderBottom: '1px solid #E5E7EB',
+                  backgroundColor: n.isRead ? 'transparent' : '#F0FDF4'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '8px', background: '#F8FAFC', border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Bell size={18} color="#2E8B57" />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: n.isRead ? 600 : 800, color: '#173D32', fontSize: '0.92rem' }}>
+                      {n.title}
+                      {!n.isRead && <span style={{ marginLeft: '8px', fontSize: '0.7rem', background: '#DEF7EC', color: '#03543F', padding: '2px 6px', borderRadius: '4px', fontWeight: 800 }}>NEW</span>}
+                    </div>
+                    <div style={{ color: '#667085', fontSize: '0.84rem', marginTop: '2px' }}>{n.message}</div>
+                    <div style={{ color: '#9CA3AF', fontSize: '0.72rem', marginTop: '4px' }}>{fmtDateTime(n.createdAt)} {n.orderId ? `• Order #${n.orderId}` : ''}</div>
+                  </div>
+                </div>
+                {!n.isRead && (
+                  <button onClick={() => handleMarkRead(n._id)} className="btn btn-sm btn-outline" style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}>
+                    Mark Read
+                  </button>
+                )}
+              </div>
+            ))
+          )}
         </div>
       )}
     </div>
@@ -2620,6 +3097,7 @@ const TABS = [
   { id: 'returns', label: 'Returns & Refunds', icon: RotateCcw },
   { id: 'reviews', label: 'Reviews', icon: Star },
   { id: 'customercare', label: 'Customer Care', icon: Phone },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'reports', label: 'Reports', icon: BarChart2 },
   { id: 'settings', label: 'Website Settings', icon: Settings },
   { id: 'auditlogs', label: 'Admin Activity', icon: Activity },
@@ -2666,6 +3144,7 @@ export default function AdminPanel({ navigate }) {
       case 'returns': return <ReturnsSection />;
       case 'reviews': return <ReviewsSection />;
       case 'customercare': return <SettingsSection initialTab="customercare" />;
+      case 'notifications': return <NotificationsSection navigate={navigate} />;
       case 'reports': return <ReportsSection />;
       case 'auditlogs': return <AuditLogsSection />;
       case 'settings': return <SettingsSection initialTab="business" />;
@@ -2787,11 +3266,8 @@ export default function AdminPanel({ navigate }) {
             {/* Theme Switcher (Light / Dark / System) */}
             <ThemeSwitcher variant="dropdown" />
 
-            {/* Bell Icon with red dot badge */}
-            <div style={{ position: 'relative', cursor: 'pointer', color: '#64748B', display: 'flex', alignItems: 'center', padding: '4px' }}>
-              <Bell size={20} />
-              <span style={{ position: 'absolute', top: 2, right: 2, width: 8, height: 8, borderRadius: '50%', background: '#EF4444', border: '2px solid #FFFFFF' }}></span>
-            </div>
+            {/* Real-time Notification Bell for Admin */}
+            <NotificationBell navigate={navigate} role="admin" />
 
             {/* Profile Dropdown Trigger */}
             <div

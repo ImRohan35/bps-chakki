@@ -37,6 +37,7 @@ export default function ProductDetails({ productId, navigate, onNotifyMe }) {
   const [selectedWeight, setSelectedWeight] = useState('');
   const [selectedImage, setSelectedImage] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [selectedTexture, setSelectedTexture] = useState('Medium');
   const [addedNotice, setAddedNotice] = useState(false);
 
   // Review submission state
@@ -137,7 +138,7 @@ export default function ProductDetails({ productId, navigate, onNotifyMe }) {
 
   const handleAddToCart = () => {
     if (isOutOfStock) return;
-    const res = addToCart(product, selectedWeight, quantity);
+    const res = addToCart(product, selectedWeight, quantity, selectedTexture);
     if (res.success) {
       setAddedNotice(true);
       setTimeout(() => setAddedNotice(false), 2000);
@@ -148,7 +149,7 @@ export default function ProductDetails({ productId, navigate, onNotifyMe }) {
 
   const handleBuyNow = () => {
     if (isOutOfStock) return;
-    addToCart(product, selectedWeight, quantity);
+    addToCart(product, selectedWeight, quantity, selectedTexture);
     navigate('checkout');
   };
 
@@ -317,6 +318,49 @@ export default function ProductDetails({ productId, navigate, onNotifyMe }) {
                   >
                     <span>{w.weight}</span>
                     <span style={{ fontWeight: isSelected ? 700 : 500, marginTop: '2px', opacity: isSelected ? 0.9 : 0.8 }}>₹{w.price}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Milling Preference / Texture Selection */}
+          <div style={{ marginTop: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
+              <label style={{ fontWeight: 600, fontSize: '0.92rem', color: 'var(--text-secondary)' }}>
+                🌾 Milling Preference (पिसाई का प्रकार):
+              </label>
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--nature-green)' }}>
+                {selectedTexture === 'Fine' ? 'Fine / बारीक' : selectedTexture === 'Coarse' ? 'Coarse / मोटा' : 'Medium / रेगुलर'}
+              </span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.6rem' }}>
+              {[
+                { id: 'Fine', title: 'Fine (बारीक)', desc: 'Soft Rotis & Phulkas' },
+                { id: 'Medium', title: 'Medium (रेगुलर)', desc: 'Daily Standard Use' },
+                { id: 'Coarse', title: 'Coarse (मोटा)', desc: 'Parathas, Bati & Dalia' }
+              ].map(t => {
+                const isSelected = selectedTexture === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setSelectedTexture(t.id)}
+                    style={{
+                      padding: '0.65rem 0.5rem',
+                      borderRadius: '8px',
+                      border: isSelected ? '2px solid #2E8B57' : '1px solid var(--border-subtle)',
+                      backgroundColor: isSelected ? 'var(--nature-light)' : 'var(--bg-surface)',
+                      color: isSelected ? 'var(--nature-green)' : 'var(--text-primary)',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{t.title}</div>
+                    <div style={{ fontSize: '0.72rem', color: isSelected ? 'var(--nature-green)' : 'var(--text-muted)', marginTop: '2px' }}>
+                      {t.desc}
+                    </div>
                   </button>
                 );
               })}
@@ -493,9 +537,9 @@ export default function ProductDetails({ productId, navigate, onNotifyMe }) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                       <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{rev.customerName}</span>
-                      {rev.verifiedPurchase && (
-                        <span className="badge badge-green" style={{ fontSize: '0.68rem' }}>
-                          ✔ Verified Purchase
+                      {(rev.verifiedPurchase || rev.isVerifiedBuyer) && (
+                        <span style={{ fontSize: '0.72rem', backgroundColor: '#E8F5EC', color: '#2E8B57', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          ✔ Verified Buyer
                         </span>
                       )}
                     </div>

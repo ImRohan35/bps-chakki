@@ -38,7 +38,12 @@ export default function AuthPages({ mode = 'login', navigate, onAuthSuccess }) {
       const res = await login(identifier, password);
       if (res.success) {
         if (onAuthSuccess) onAuthSuccess(res.user);
-        else navigate(res.user.role === 'admin' ? 'admin' : res.user.role === 'delivery' ? 'delivery' : 'home');
+        else {
+          const role = res.user?.role;
+          if (role === 'admin' || role === 'super_admin') navigate('admin');
+          else if (role === 'delivery') navigate('delivery');
+          else navigate('home');
+        }
       }
     } catch (err) {
       setErrorMsg(err.message || 'Invalid email/mobile or password.');

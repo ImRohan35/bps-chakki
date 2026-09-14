@@ -7,13 +7,13 @@ export default function DistanceChecker() {
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState(null);
 
-  // Pre-configured popular nearby local landmarks for instant test
+  // Pre-configured popular nearby local landmarks for instant test around Lakhanpur, Cholapur, Varanasi
   const sampleAreas = [
-    { name: 'Rohini Sector 15 (2.1 KM)', lat: 28.7100, lon: 77.1100 },
-    { name: 'Pitampura (4.8 KM)', lat: 28.6989, lon: 77.1386 },
-    { name: 'Shalimar Bagh (7.2 KM)', lat: 28.7165, lon: 77.1593 },
-    { name: 'Model Town (9.5 KM)', lat: 28.7028, lon: 77.1932 },
-    { name: 'Noida Sector 62 (28 KM - Outside Area)', lat: 28.6280, lon: 77.3649 }
+    { name: 'Cholapur Bazar (1.5 KM)', lat: 25.4720, lon: 83.0500 },
+    { name: 'Chaubeypur (6.8 KM)', lat: 25.4300, lon: 83.1000 },
+    { name: 'Babatpur Airport (11.2 KM)', lat: 25.4500, lon: 82.8600 },
+    { name: 'Sarnath (13.5 KM)', lat: 25.3715, lon: 83.0252 },
+    { name: 'Mughalsarai (28 KM - Outside)', lat: 25.2800, lon: 83.1200 }
   ];
 
   const handleCheckCoordinate = async (lat, lon, label) => {
@@ -39,18 +39,36 @@ export default function DistanceChecker() {
     }
   };
 
+  const handleDetectGPS = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    setChecking(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        handleCheckCoordinate(
+          position.coords.latitude,
+          position.coords.longitude,
+          'Your Current GPS Location'
+        );
+      },
+      (error) => {
+        setChecking(false);
+        alert('Could not access live location. Please enter your PIN code or area name.');
+      },
+      { timeout: 10000 }
+    );
+  };
+
   const handleCustomCheck = (e) => {
     e.preventDefault();
     if (!addressInput.trim()) return;
 
-    // Simulate distance check based on input
-    const isOutside = addressInput.toLowerCase().includes('noida') ||
-      addressInput.toLowerCase().includes('gurugram') ||
-      addressInput.toLowerCase().includes('faridabad') ||
-      addressInput.toLowerCase().includes('ghaziabad');
-
-    const simulatedLat = isOutside ? 28.4595 : 28.7120;
-    const simulatedLon = isOutside ? 77.0266 : 77.1150;
+    const clean = addressInput.trim().toLowerCase();
+    const isNearby = clean.includes('221101') || clean.includes('cholapur') || clean.includes('lakhanpur') || clean.includes('chaubeypur') || clean.includes('sarnath') || clean.includes('varanasi') || clean.includes('babatpur') || clean.includes('221007') || clean.includes('221002');
+    const simulatedLat = isNearby ? 25.4600 : 28.6139;
+    const simulatedLon = isNearby ? 83.0600 : 77.2090;
 
     handleCheckCoordinate(simulatedLat, simulatedLon, addressInput);
   };
@@ -65,25 +83,37 @@ export default function DistanceChecker() {
         boxShadow: 'var(--shadow-sm)'
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
-        <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'var(--nature-light)', color: 'var(--nature-green)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Navigation size={18} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'var(--nature-light)', color: 'var(--nature-green)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Navigation size={18} />
+          </div>
+          <div>
+            <h4 style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+              Check Delivery In Your Area (15 KM Radius)
+            </h4>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+              Milled at Lakhanpur, Cholapur, Varanasi 221101 • Delivered fresh within 15 KM
+            </p>
+          </div>
         </div>
-        <div>
-          <h4 style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
-            Check Delivery In Your Area
-          </h4>
-          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-            We deliver freshly milled chakki atta within a strict 15 KM radius
-          </p>
-        </div>
+
+        <button
+          type="button"
+          onClick={handleDetectGPS}
+          disabled={checking}
+          className="btn btn-sm btn-outline"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', borderColor: 'var(--nature-green)', color: 'var(--nature-green)', fontWeight: 700 }}
+        >
+          <MapPin size={15} /> {checking ? 'Detecting…' : 'Detect My Location'}
+        </button>
       </div>
 
       {/* Input Form */}
       <form onSubmit={handleCustomCheck} style={{ display: 'flex', gap: '0.5rem', margin: '1rem 0' }}>
         <input
           type="text"
-          placeholder="Enter your Sector, Area, or PIN code..."
+          placeholder="Enter your PIN code (e.g. 221101) or Area name..."
           value={addressInput}
           onChange={e => setAddressInput(e.target.value)}
           style={{ flex: 1 }}

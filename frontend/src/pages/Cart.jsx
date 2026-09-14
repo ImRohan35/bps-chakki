@@ -97,8 +97,13 @@ export default function Cart({ navigate }) {
                   <h3 style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-primary)', marginBottom: '0.2rem' }}>
                     {item.name}
                   </h3>
-                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>
-                    {item.weight}
+                  <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                    <span>{item.weight}</span>
+                    {item.texture && (
+                      <span style={{ marginLeft: '6px', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'var(--nature-light)', color: 'var(--nature-green)', fontSize: '0.75rem', fontWeight: 700 }}>
+                        {item.texture === 'Fine' ? 'बारीक / Fine' : item.texture === 'Coarse' ? 'मोटा / Coarse' : 'रेगुलर / Medium'}
+                      </span>
+                    )}
                   </div>
                   <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary-fresh-green)' }}>
                     ₹{item.price}
@@ -109,7 +114,7 @@ export default function Cart({ navigate }) {
               {/* Quantity */}
               <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden', height: '40px', backgroundColor: 'var(--bg-card)', marginRight: '2rem' }}>
                 <button
-                  onClick={() => updateQuantity(item.productId, item.weight, item.quantity - 1)}
+                  onClick={() => updateQuantity(item.productId, item.weight, item.quantity - 1, item.texture)}
                   style={{ padding: '0 0.8rem', height: '100%', backgroundColor: 'transparent', fontWeight: 700, border: 'none', cursor: 'pointer', color: 'var(--text-primary)' }}
                 >
                   -
@@ -118,7 +123,7 @@ export default function Cart({ navigate }) {
                   {item.quantity}
                 </span>
                 <button
-                  onClick={() => updateQuantity(item.productId, item.weight, item.quantity + 1)}
+                  onClick={() => updateQuantity(item.productId, item.weight, item.quantity + 1, item.texture)}
                   style={{ padding: '0 0.8rem', height: '100%', backgroundColor: 'transparent', fontWeight: 700, border: 'none', cursor: 'pointer', color: 'var(--text-primary)' }}
                 >
                   +
@@ -131,7 +136,7 @@ export default function Cart({ navigate }) {
                   ₹{item.price * item.quantity}
                 </div>
                 <button
-                  onClick={() => removeFromCart(item.productId, item.weight)}
+                  onClick={() => removeFromCart(item.productId, item.weight, item.texture)}
                   style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   title="Remove item"
                 >

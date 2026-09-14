@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { CheckCircle2, ShoppingBag, ArrowRight, ShieldCheck, Truck, Key } from 'lucide-react';
+import { CheckCircle2, ShoppingBag, ArrowRight, ShieldCheck, Truck, Key, Share2, Clock } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export default function OrderConfirmation({ order, navigate, onTrackOrder }) {
@@ -26,6 +26,20 @@ export default function OrderConfirmation({ order, navigate, onTrackOrder }) {
     );
   }
 
+  const handleShareWhatsApp = () => {
+    const orderId = order.orderId || 'BPS-ORDER';
+    const total = order.totalAmount || '0';
+    const batch = order.millingSlot || 'Morning Batch (8:00 AM - 11:30 AM)';
+    const text = `🌾 *BPS Fresh Mills - Order Confirmed* 🌾\n\n` +
+      `✅ *Order ID:* #${orderId}\n` +
+      `💰 *Total:* ₹${total} (${order.paymentMethod || 'COD'})\n` +
+      `🕒 *Milling Batch:* ${batch}\n` +
+      `📍 *Delivery Area:* ${order.shippingAddress ? `${order.shippingAddress.name}, ${order.shippingAddress.houseFlat}, ${order.shippingAddress.city} (${order.shippingAddress.pincode})` : 'Lakhanpur, Cholapur, Varanasi'}\n\n` +
+      `Pure Stone-Ground Fresh Chakki Flour from Lakhanpur, Cholapur, Varanasi 221101.`;
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+  };
+
   return (
     <div className="container" style={{ padding: '4rem 1.25rem 5rem', maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
       
@@ -38,7 +52,7 @@ export default function OrderConfirmation({ order, navigate, onTrackOrder }) {
           Your Fresh Order Is On Its Way
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem' }}>
-          Thank you! Your freshly milled flour is being prepared at our stone chakki.
+          Thank you! Your freshly milled flour is being prepared at our stone chakki in Lakhanpur, Cholapur.
         </p>
       </div>
 
@@ -74,6 +88,18 @@ export default function OrderConfirmation({ order, navigate, onTrackOrder }) {
              <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>{order.paymentMethod || 'Cash on Delivery'}</div>
           </div>
         </div>
+
+        {order.millingSlot && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px dashed var(--border-subtle)' }}>
+            <div>
+              <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>Milling Batch</div>
+              <div style={{ fontWeight: 700, fontSize: '0.98rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Clock size={16} color="var(--primary-fresh-green, #2E8B57)" />
+                {order.millingSlot}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px dashed var(--border-subtle)' }}>
           <div>
@@ -116,7 +142,7 @@ export default function OrderConfirmation({ order, navigate, onTrackOrder }) {
         <button
           onClick={() => onTrackOrder && onTrackOrder(order)}
           style={{
-            flex: '1 1 220px',
+            flex: '1 1 200px',
             padding: '1.1rem',
             backgroundColor: '#2E8B57',
             color: '#fff',
@@ -136,9 +162,31 @@ export default function OrderConfirmation({ order, navigate, onTrackOrder }) {
         </button>
 
         <button
-          onClick={() => navigate('home')}
+          onClick={handleShareWhatsApp}
           style={{
             flex: '1 1 200px',
+            padding: '1.1rem',
+            backgroundColor: '#25D366',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '8px',
+            fontWeight: 700,
+            fontSize: '1rem',
+            cursor: 'pointer',
+            boxShadow: '0 4px 14px rgba(37, 211, 102, 0.25)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}
+        >
+          <Share2 size={18} /> Share on WhatsApp
+        </button>
+
+        <button
+          onClick={() => navigate('home')}
+          style={{
+            flex: '1 1 180px',
             padding: '1.1rem',
             backgroundColor: 'transparent',
             color: 'var(--text-primary)',

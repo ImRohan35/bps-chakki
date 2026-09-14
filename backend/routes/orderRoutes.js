@@ -23,7 +23,7 @@ function generateOrderId() {
 router.post('/', authenticate, (req, res) => {
   try {
     const user = req.user;
-    const { items, shippingAddress, couponCode, notes } = req.body;
+    const { items, shippingAddress, couponCode, notes, millingSlot } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, message: 'Your cart is empty.' });
@@ -35,8 +35,8 @@ router.post('/', authenticate, (req, res) => {
 
     // 1. Fetch Store Settings for Distance and Delivery Charge
     const settings = db.Settings.find()[0] || {};
-    const shopLat = settings.shopLat || 28.7041;
-    const shopLon = settings.shopLon || 77.1025;
+    const shopLat = settings.shopLat || 25.4678;
+    const shopLon = settings.shopLon || 83.0564;
     const maxRadiusKm = settings.maxDeliveryRadiusKm || 15;
     const standardDeliveryCharge = settings.deliveryCharge !== undefined ? settings.deliveryCharge : 40;
     const freeDeliveryThreshold = settings.freeDeliveryThreshold !== undefined ? settings.freeDeliveryThreshold : 500;
@@ -104,6 +104,7 @@ router.post('/', authenticate, (req, res) => {
         productId: product._id,
         name: product.name,
         weight: item.weight || product.weight || '5 KG',
+        texture: item.texture || 'Medium',
         price: unitPrice,
         quantity: requestedQty,
         subtotal: itemSubtotal,
@@ -178,6 +179,7 @@ router.post('/', authenticate, (req, res) => {
       expectedDeliveryDate,
       trackingNumber: '',
       deliveryOtp,
+      millingSlot: millingSlot || 'Morning Batch (8:00 AM - 11:30 AM)',
       notes: notes || '',
       assignedDeliveryBoy: null,
       notifications: {
@@ -369,8 +371,8 @@ router.post('/:id/cancel', optionalAuthenticate, async (req, res) => {
 router.post('/check-delivery-distance', (req, res) => {
   const { lat, lon } = req.body;
   const settings = db.Settings.find()[0] || {};
-  const shopLat = settings.shopLat || 28.7041;
-  const shopLon = settings.shopLon || 77.1025;
+  const shopLat = settings.shopLat || 25.4678;
+  const shopLon = settings.shopLon || 83.0564;
   const maxRadiusKm = settings.maxDeliveryRadiusKm || 15;
 
   const result = validateDeliveryArea(shopLat, shopLon, lat, lon, maxRadiusKm);

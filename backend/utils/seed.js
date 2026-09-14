@@ -14,9 +14,9 @@ async function seedDatabase() {
       phone: '6386621332',
       whatsapp: '6386621332',
       email: 'bpsfreshmill@gmail.com',
-      shopAddress: 'Shop No. 4, Market Complex, Main Road, Near Gandhi Chowk, Sector 14, Delhi NCR 110085',
-      shopLat: 28.7041,
-      shopLon: 77.1025,
+      shopAddress: 'Lakhanpur, Cholapur, Varanasi 221101',
+      shopLat: 25.4678,
+      shopLon: 83.0564,
       maxDeliveryRadiusKm: 15,
       deliveryCharge: 40,
       freeDeliveryThreshold: 500,
@@ -564,7 +564,7 @@ async function ensureDeliveryAccounts() {
 }
 
 async function ensureAdminAccount() {
-  const adminEmail = (process.env.ADMIN_EMAIL || 'bpsfreshmill@gmail.com').trim().toLowerCase();
+  const adminEmail = (process.env.ADMIN_EMAIL || 'bpsfreshmills@gmail.com').trim().toLowerCase();
   const adminPassword = process.env.ADMIN_INITIAL_PASSWORD || 'bps@2005';
   const adminPasswordHash = await bcrypt.hash(adminPassword, 10);
 
