@@ -71,7 +71,53 @@ export default function Navbar({ currentRoute, navigate, onOpenSearch }) {
           </div>
 
           {/* Right Action Icons (Flourist minimalist icons: User, Search, Wishlist, Cart) */}
-          <div className="flourist-nav-right">
+          <div className="flourist-nav-right" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            {/* Quick Access Badges for Delivery & Admin */}
+            {isDelivery && (
+              <button
+                onClick={() => handleNav('delivery')}
+                style={{
+                  backgroundColor: '#2E8B57',
+                  color: '#FFFFFF',
+                  fontWeight: 800,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '0.42rem 0.85rem',
+                  borderRadius: '20px',
+                  fontSize: '0.82rem',
+                  boxShadow: '0 2px 8px rgba(46,139,87,0.3)',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+                title="Open Delivery Boy Portal"
+              >
+                <Truck size={14} /> My Deliveries
+              </button>
+            )}
+
+            {isAdmin && (
+              <button
+                onClick={() => handleNav('admin')}
+                style={{
+                  backgroundColor: 'var(--earth-brown)',
+                  color: '#FAF6F0',
+                  fontWeight: 800,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '0.42rem 0.85rem',
+                  borderRadius: '20px',
+                  fontSize: '0.82rem',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+                title="Open Admin Dashboard"
+              >
+                <ShieldCheck size={14} /> Admin Panel
+              </button>
+            )}
+
             {/* Account / User Menu */}
             <div style={{ position: 'relative' }}>
               <button
@@ -261,6 +307,28 @@ export default function Navbar({ currentRoute, navigate, onOpenSearch }) {
                 Contact
               </button>
             </li>
+            {isDelivery && (
+              <li>
+                <button
+                  onClick={() => handleNav('delivery')}
+                  className={`flourist-link ${currentRoute === 'delivery' ? 'active' : ''}`}
+                  style={{ color: '#2E8B57', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                >
+                  <Truck size={14} /> My Deliveries
+                </button>
+              </li>
+            )}
+            {isAdmin && (
+              <li>
+                <button
+                  onClick={() => handleNav('admin')}
+                  className={`flourist-link ${currentRoute === 'admin' ? 'active' : ''}`}
+                  style={{ color: 'var(--earth-brown)', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                >
+                  <ShieldCheck size={14} /> Admin Panel
+                </button>
+              </li>
+            )}
           </ul>
         </div>
       </div>

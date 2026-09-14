@@ -17,7 +17,9 @@ import {
   X,
   XCircle,
   HelpCircle,
-  RotateCw
+  RotateCw,
+  Truck,
+  ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -416,6 +418,52 @@ export default function Account({ navigate, onTrackOrder, activeTab: initialTab 
             >
               <Lock size={18} /> Change Password
             </button>
+
+            {(user?.role === 'delivery' || user?.role === 'admin' || user?.role === 'super_admin') && (
+              <button
+                onClick={() => navigate('delivery')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.65rem',
+                  padding: '0.75rem 0.9rem',
+                  borderRadius: 'var(--radius-sm)',
+                  fontWeight: 800,
+                  fontSize: '0.92rem',
+                  backgroundColor: 'rgba(46, 139, 87, 0.12)',
+                  color: 'var(--primary-fresh-green, #2E8B57)',
+                  textAlign: 'left',
+                  border: '1.5px solid var(--primary-fresh-green, #2E8B57)',
+                  marginTop: '0.5rem',
+                  cursor: 'pointer'
+                }}
+              >
+                <Truck size={18} /> 🛵 My Deliveries Portal
+              </button>
+            )}
+
+            {(user?.role === 'admin' || user?.role === 'super_admin') && (
+              <button
+                onClick={() => navigate('admin')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.65rem',
+                  padding: '0.75rem 0.9rem',
+                  borderRadius: 'var(--radius-sm)',
+                  fontWeight: 800,
+                  fontSize: '0.92rem',
+                  backgroundColor: 'rgba(23, 61, 50, 0.08)',
+                  color: 'var(--earth-brown)',
+                  textAlign: 'left',
+                  border: '1.5px solid var(--earth-brown)',
+                  marginTop: '0.35rem',
+                  cursor: 'pointer'
+                }}
+              >
+                <ShieldCheck size={18} /> 🛡️ Admin Dashboard
+              </button>
+            )}
 
             <div style={{ padding: '0.75rem 0.25rem 0.25rem' }}>
               <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
