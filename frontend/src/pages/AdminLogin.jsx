@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Lock, Mail, AlertCircle, ArrowLeft, KeyRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,9 +9,14 @@ export default function AdminLogin({ navigate }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // If already logged in as admin, redirect to admin dashboard immediately
+  // Safely redirect if already logged in as admin
+  useEffect(() => {
+    if (isAdmin) {
+      navigate('admin-dashboard');
+    }
+  }, [isAdmin, navigate]);
+
   if (isAdmin) {
-    navigate('admin-dashboard');
     return null;
   }
 

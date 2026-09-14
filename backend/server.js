@@ -33,9 +33,11 @@ seedDatabase().catch(err => console.error('Failed to initialize database:', err)
 const allowedOrigins = [
   'https://bpsfreshmills.in',
   'https://www.bpsfreshmills.in',
+  'https://bps-chakki.onrender.com',
   process.env.FRONTEND_URL,
   'http://localhost:5173',
   'http://localhost:3000',
+  'http://localhost:5000',
   'http://127.0.0.1:5173'
 ].filter(Boolean);
 
@@ -52,7 +54,13 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow non-browser requests (Postman, curl, server-to-server, mobile app)
     if (!origin) return callback(null, true);
-    if (!IS_PRODUCTION || allowedOrigins.includes(origin)) {
+    if (
+      !IS_PRODUCTION ||
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.onrender.com') ||
+      origin.includes('localhost') ||
+      origin.includes('127.0.0.1')
+    ) {
       return callback(null, true);
     }
     console.warn(`[CORS Blocked] Unauthorized origin attempted access: ${origin}`);
