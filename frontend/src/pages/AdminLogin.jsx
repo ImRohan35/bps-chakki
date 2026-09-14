@@ -76,26 +76,35 @@ export default function AdminLogin({ navigate }) {
         />
 
         {/* Brand & Security Header */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
-            <div style={{ width: 48, height: 48, borderRadius: '12px', background: '#2E8B57', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF', boxShadow: '0 4px 12px rgba(46,139,87,0.3)' }}>
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>
-                <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
-              </svg>
-            </div>
+        <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.75rem' }}>
+            <img
+              src="/logo.png"
+              alt="BPS Fresh Mills Logo"
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: '50%',
+                objectFit: 'contain',
+                boxShadow: '0 4px 14px rgba(23,61,50,0.25)',
+                border: '2px solid #C9A44C'
+              }}
+            />
           </div>
 
           <h1
             style={{
-              fontSize: '1.5rem',
+              fontSize: '1.45rem',
               fontWeight: 800,
-              color: '#111827',
+              color: '#173D32',
               margin: '0.2rem 0'
             }}
           >
-            FreshCart & BPS Admin
+            🌾 BPS Fresh Mills
           </h1>
+          <div style={{ fontSize: '0.85rem', color: '#C9A44C', fontWeight: 700, fontStyle: 'italic', marginBottom: '0.6rem' }}>
+            “Freshly Milled. Naturally Good.”
+          </div>
 
           <div
             style={{
@@ -104,33 +113,33 @@ export default function AdminLogin({ navigate }) {
               gap: '0.4rem',
               color: '#047857',
               backgroundColor: '#DEF7EC',
-              padding: '0.3rem 0.85rem',
+              padding: '0.35rem 0.9rem',
               borderRadius: '999px',
-              fontSize: '0.75rem',
-              fontWeight: 700,
+              fontSize: '0.78rem',
+              fontWeight: 800,
               textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              marginTop: '0.5rem'
+              letterSpacing: '0.04em'
             }}
           >
-            <ShieldCheck size={14} /> Admin Portal Authentication
+            <ShieldCheck size={15} /> BPS Admin Console Login
           </div>
         </div>
 
-        {/* Security Warning Notice */}
+        {/* Security Notice & Role Identity */}
         <div
           style={{
-            backgroundColor: 'var(--bg-secondary)',
-            borderLeft: '4px solid var(--wheat-gold)',
+            backgroundColor: '#F0FDF4',
+            border: '1px solid #BBF7D0',
+            borderLeft: '4px solid #16A34A',
             padding: '0.85rem 1rem',
-            borderRadius: '4px',
-            fontSize: '0.8rem',
-            color: 'var(--text-secondary)',
+            borderRadius: '6px',
+            fontSize: '0.82rem',
+            color: '#166534',
             lineHeight: 1.5,
-            marginBottom: '1.75rem'
+            marginBottom: '1.5rem'
           }}
         >
-          <strong>Restricted Access:</strong> This portal is exclusively for verified BPS Fresh Mills managers. Normal customer logins are not accepted here.
+          <strong>Ye BPS Admin Portal hai:</strong> Ye portal sirf BPS Fresh Mills ke store manager/owner ke liye hai. Yahan se store orders, inventory, aur AI Business Assistant manage hota hai.
         </div>
 
         {/* Error Alert */}

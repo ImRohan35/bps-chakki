@@ -300,14 +300,7 @@ export default function App() {
           isAdmin ? (
             <AdminPanel navigate={navigate} />
           ) : (
-            <AuthPages
-              mode="login"
-              navigate={navigate}
-              onAuthSuccess={(user) => {
-                if (user.role === 'admin' || user.role === 'super_admin') navigate('admin');
-                else navigate('home');
-              }}
-            />
+            <AdminLogin navigate={navigate} />
           )
         )}
 
