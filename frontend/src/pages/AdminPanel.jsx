@@ -2797,8 +2797,25 @@ function DeliverySection() {
       {modal && (
         <Modal title="Add Delivery Boy" onClose={() => setModal(false)}>
           {modalError && (
-            <div style={{ padding: '0.65rem 0.85rem', background: '#FDE8E6', color: '#C0392B', borderRadius: '8px', fontSize: '0.84rem', fontWeight: 600, marginBottom: '1rem', border: '1px solid rgba(192,57,43,0.2)' }}>
-              ⚠️ {modalError}
+            <div style={{ padding: '0.75rem 1rem', background: '#FDE8E6', color: '#C0392B', borderRadius: '8px', fontSize: '0.84rem', fontWeight: 600, marginBottom: '1rem', border: '1px solid rgba(192,57,43,0.2)' }}>
+              <div>⚠️ {modalError}</div>
+              {(modalError.includes('Admin privileges') || modalError.includes('Access denied') || modalError.includes('privileges required')) && (
+                <div style={{ marginTop: '0.6rem', paddingTop: '0.6rem', borderTop: '1px solid rgba(192,57,43,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.78rem', color: '#7F1D1D', fontWeight: 500 }}>
+                    Aapka session customer account se overwrite ho gaya tha. Dobara Admin sign-in karein:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      localStorage.removeItem('bps_admin_token');
+                      window.location.href = '/admin/login';
+                    }}
+                    style={{ padding: '5px 12px', background: '#C0392B', color: '#FFFFFF', border: 'none', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    🔑 Re-Login as Admin
+                  </button>
+                </div>
+              )}
             </div>
           )}
           <FieldRow label="Full Name" required>
@@ -2806,6 +2823,9 @@ function DeliverySection() {
           </FieldRow>
           <FieldRow label="Mobile Number (10 Digits)" required>
             <input style={inputStyle} value={form.mobile} onChange={e => setForm(f => ({ ...f, mobile: e.target.value }))} placeholder="e.g. 9812345678" maxLength={10} />
+            <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '4px' }}>
+              💡 Delivery boy ka apna 10-digit mobile number enter karein (Store Admin ka mobile number use na karein).
+            </div>
           </FieldRow>
           <FieldRow label="Email (optional)">
             <input style={inputStyle} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="e.g. ramesh@bpsfreshmills.com" />

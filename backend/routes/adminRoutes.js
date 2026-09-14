@@ -1099,10 +1099,49 @@ router.post('/delivery-agents', async (req, res) => {
     if (!name || !mobile || !password) return res.status(400).json({ success: false, message: 'Name, mobile and password are required' });
     const cleanMobile = mobile.trim().replace(/\D/g, '').slice(-10);
     if (cleanMobile.length < 10) return res.status(400).json({ success: false, message: 'Please provide a valid 10-digit mobile number' });
-    const existing = db.Users.findOne({ mobile: cleanMobile });
-    if (existing) return res.status(400).json({ success: false, message: 'Mobile number already registered' });
+
+    // Check if phone matches any Administrator
+    const existingAdmin = db.Users.findOne(u => (u.role === 'admin' || u.role === 'super_admin') && u.mobile && u.mobile.slice(-10) === cleanMobile);
+    if (existingAdmin) {
+      return res.status(400).json({
+        success: false,
+        message: `This mobile number (${cleanMobile}) belongs to Store Administrator (${existingAdmin.name}). Please enter the delivery boy's own personal 10-digit mobile number.`
+      });
+    }
+
+    // Check if already an active delivery agent
+    const existingAgent = db.DeliveryAgents.findOne(a => a.mobile && a.mobile.slice(-10) === cleanMobile);
+    if (existingAgent) {
+      return res.status(400).json({
+        success: false,
+        message: `A delivery partner (${existingAgent.name}) is already registered with mobile number ${cleanMobile}.`
+      });
+    }
+
     const hashed = await bcrypt.hash(password, 8);
-    const user = db.Users.insertOne({ name: name.trim(), mobile: cleanMobile, email: req.body.email ? req.body.email.trim() : '', password: hashed, role: 'delivery', status: 'active', addresses: [] });
+    let user = db.Users.findOne(u => u.mobile && u.mobile.slice(-10) === cleanMobile);
+
+    if (user) {
+      // Existing customer converted to delivery partner
+      user = db.Users.updateById(user._id, {
+        name: name.trim(),
+        email: req.body.email ? req.body.email.trim() : user.email,
+        password: hashed,
+        role: 'delivery',
+        status: 'active'
+      });
+    } else {
+      user = db.Users.insertOne({
+        name: name.trim(),
+        mobile: cleanMobile,
+        email: req.body.email ? req.body.email.trim() : '',
+        password: hashed,
+        role: 'delivery',
+        status: 'active',
+        addresses: []
+      });
+    }
+
     const agent = db.DeliveryAgents.insertOne({
       userId: user._id,
       name: name.trim(),
@@ -1113,7 +1152,8 @@ router.post('/delivery-agents', async (req, res) => {
       totalCashDeposited: 0,
       cashDifference: 0
     });
-    logAdminAction(req.user, 'DELIVERY_AGENT_ADDED', { name: name.trim(), mobile: cleanMobile });
+
+    logAdminAction(req.user, 'DELIVERY_AGENT_ADDED', { name: name.trim(), mobile: cleanMobile, agentId: agent._id });
     res.status(201).json({ success: true, message: 'Delivery agent added successfully', agent });
   } catch (err) {
     console.error('Error adding delivery agent:', err);

@@ -175,18 +175,18 @@ export default function AdminLogin({ navigate }) {
               htmlFor="admin-email"
               style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.4rem' }}
             >
-              Administrator Email
+              Administrator Email or Mobile Number
             </label>
             <div style={{ position: 'relative' }}>
               <input
                 id="admin-email"
-                type="email"
+                type="text"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="bpsfreshmills@gmail.com"
+                placeholder="6386621332 or bpsfreshmills@gmail.com"
                 style={{ width: '100%', paddingLeft: '2.5rem' }}
-                autoComplete="email"
+                autoComplete="username"
               />
               <Mail
                 size={16}

@@ -568,13 +568,17 @@ async function ensureAdminAccount() {
   const adminPassword = process.env.ADMIN_INITIAL_PASSWORD || 'bps@2005';
   const adminPasswordHash = await bcrypt.hash(adminPassword, 10);
 
-  // 1. First search by exact email
-  let existingAdmin = db.Users.findOne(u => u.email && u.email.toLowerCase() === adminEmail);
-
-  // 2. If not found by email, search by super_admin role
-  if (!existingAdmin) {
-    existingAdmin = db.Users.findOne(u => u.role === 'super_admin');
-  }
+  // 1. First search by exact email or alternate spelling or mobile
+  let existingAdmin = db.Users.findOne(u => {
+    if (u.role === 'super_admin' || u.role === 'admin') return true;
+    if (u.email && (
+      u.email.toLowerCase() === adminEmail ||
+      u.email.toLowerCase() === 'bpsfreshmill@gmail.com' ||
+      u.email.toLowerCase() === 'bpsfreshmills@gmail.com'
+    )) return true;
+    if (u.mobile && u.mobile.slice(-10) === '6386621332') return true;
+    return false;
+  });
 
   if (!existingAdmin) {
     db.Users.insertOne({

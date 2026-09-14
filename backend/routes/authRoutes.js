@@ -137,10 +137,33 @@ router.post('/login', async (req, res) => {
 // 2b. SEPARATE DEDICATED ADMIN LOGIN
 router.post('/admin-login', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ success: false, message: 'Please enter both admin email and password.' });
-    const cleanEmail = email.trim().toLowerCase();
-    const user = db.Users.findOne(u => u.email && u.email.toLowerCase() === cleanEmail);
+    const rawId = req.body.email || req.body.identifier || req.body.mobile;
+    const { password } = req.body;
+    if (!rawId || !password) {
+      return res.status(400).json({ success: false, message: 'Please enter both admin email/mobile and password.' });
+    }
+    const clean = rawId.trim().toLowerCase();
+    const cleanMobile = clean.replace(/\D/g, '').slice(-10);
+
+    const user = db.Users.findOne(u => {
+      // Must be admin or super_admin
+      if (u.role !== 'admin' && u.role !== 'super_admin') return false;
+      if (u.email && (
+        u.email.toLowerCase() === clean ||
+        (clean.startsWith('bpsfreshmill') && u.email.toLowerCase().startsWith('bpsfreshmill'))
+      )) return true;
+      if (cleanMobile && u.mobile && u.mobile.slice(-10) === cleanMobile) return true;
+      return false;
+    }) || db.Users.findOne(u => {
+      // Fallback: check all users if credentials match but role check needs explicit message
+      if (u.email && (
+        u.email.toLowerCase() === clean ||
+        (clean.startsWith('bpsfreshmill') && u.email.toLowerCase().startsWith('bpsfreshmill'))
+      )) return true;
+      if (cleanMobile && u.mobile && u.mobile.slice(-10) === cleanMobile) return true;
+      return false;
+    });
+
     if (!user) return res.status(401).json({ success: false, message: 'Invalid administrator credentials.' });
     if (user.role !== 'admin' && user.role !== 'super_admin') {
       return res.status(403).json({ success: false, message: 'Access denied. You do not have administrator permissions.' });
@@ -151,7 +174,7 @@ router.post('/admin-login', async (req, res) => {
     const { password: _, ...userSafe } = user;
     // Log admin login
     const { logAdminAction } = require('../middleware/auth');
-    logAdminAction(user, 'ADMIN_LOGIN', { email: cleanEmail, role: user.role });
+    logAdminAction(user, 'ADMIN_LOGIN', { identifier: clean, role: user.role });
     return res.json({ success: true, message: 'Admin authenticated successfully.', token, user: userSafe });
   } catch (err) {
     console.error('Admin login error:', err);

@@ -9,7 +9,7 @@ export function AuthProvider({ children }) {
 
   // Load user profile on mount if token exists
   useEffect(() => {
-    const token = localStorage.getItem('bps_token');
+    const token = localStorage.getItem('bps_token') || localStorage.getItem('bps_admin_token');
     if (!token) {
       setLoading(false);
       return;
@@ -19,6 +19,9 @@ export function AuthProvider({ children }) {
       .then(res => {
         if (res.success && res.user) {
           setUser(res.user);
+          if (res.user.role === 'admin' || res.user.role === 'super_admin') {
+            localStorage.setItem('bps_admin_token', token);
+          }
         }
       })
       .catch(() => {
@@ -38,6 +41,9 @@ export function AuthProvider({ children }) {
 
     if (res.success && res.token) {
       localStorage.setItem('bps_token', res.token);
+      if (res.user?.role === 'admin' || res.user?.role === 'super_admin') {
+        localStorage.setItem('bps_admin_token', res.token);
+      }
       setUser(res.user);
     }
     return res;
@@ -56,14 +62,15 @@ export function AuthProvider({ children }) {
     return res;
   };
 
-  const adminLogin = async (email, password) => {
+  const adminLogin = async (rawId, password) => {
     const res = await fetchApi('/auth/admin-login', {
       method: 'POST',
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ identifier: rawId, email: rawId, password })
     });
 
     if (res.success && res.token) {
       localStorage.setItem('bps_token', res.token);
+      localStorage.setItem('bps_admin_token', res.token);
       setUser(res.user);
     }
     return res;
@@ -71,6 +78,7 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     localStorage.removeItem('bps_token');
+    localStorage.removeItem('bps_admin_token');
     setUser(null);
   };
 
