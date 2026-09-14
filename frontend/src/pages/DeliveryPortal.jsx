@@ -332,28 +332,59 @@ export default function DeliveryPortal({ navigate, initialMode = 'dashboard' }) 
             textAlign: 'center'
           }}
         >
-          <div
-            style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '50%',
-              backgroundColor: '#E8F5EC',
-              color: '#2E8B57',
-              display: 'flex',
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '1.25rem' }}>
+            <img
+              src="/logo.png"
+              alt="BPS Fresh Mills"
+              style={{
+                width: '68px',
+                height: '68px',
+                borderRadius: '50%',
+                objectFit: 'contain',
+                border: '2px solid #C9A44C',
+                boxShadow: '0 4px 14px rgba(23,61,50,0.25)',
+                marginBottom: '0.75rem',
+                backgroundColor: '#FFFFFF',
+                padding: '2px'
+              }}
+            />
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#173D32', margin: '0.2rem 0' }}>
+              🛵 BPS Delivery Partner
+            </h2>
+            <div style={{ fontSize: '0.84rem', color: '#C9A44C', fontWeight: 700, fontStyle: 'italic', marginBottom: '0.6rem' }}>
+              “Freshly Milled. Naturally Good.”
+            </div>
+            <div style={{
+              display: 'inline-flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 1.25rem'
-            }}
-          >
-            <Truck size={32} />
+              gap: '0.4rem',
+              backgroundColor: '#DEF7EC',
+              color: '#047857',
+              padding: '0.3rem 0.85rem',
+              borderRadius: '999px',
+              fontSize: '0.76rem',
+              fontWeight: 800
+            }}>
+              Rider Dispatch & COD Collection Portal
+            </div>
           </div>
 
-          <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
-            Delivery Boy Portal
-          </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginBottom: '1.75rem' }}>
-            Log in with your registered delivery credentials to access today's assigned dispatch orders.
-          </p>
+          <div
+            style={{
+              backgroundColor: '#F0FDF4',
+              border: '1px solid #BBF7D0',
+              borderLeft: '4px solid #16A34A',
+              padding: '0.8rem 1rem',
+              borderRadius: '6px',
+              fontSize: '0.82rem',
+              color: '#166534',
+              lineHeight: 1.5,
+              marginBottom: '1.25rem',
+              textAlign: 'left'
+            }}
+          >
+            <strong>Ye BPS Delivery Boy Portal hai:</strong> Apna registered mobile number daalkar login karein taaki aaj ke assigned orders, GPS maps aur customer OTP verify kar sakein.
+          </div>
 
           {loginError && (
             <div
@@ -374,7 +405,7 @@ export default function DeliveryPortal({ navigate, initialMode = 'dashboard' }) 
           <form onSubmit={handleDeliveryLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', textAlign: 'left' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                Mobile Number or Email
+                Delivery Boy Mobile Number
               </label>
               <input
                 type="text"
@@ -420,14 +451,35 @@ export default function DeliveryPortal({ navigate, initialMode = 'dashboard' }) 
               type="submit"
               disabled={loggingIn}
               className="btn btn-primary"
-              style={{ width: '100%', padding: '0.85rem', marginTop: '0.5rem', fontWeight: 800, fontSize: '0.95rem' }}
+              style={{ width: '100%', padding: '0.85rem', marginTop: '0.3rem', fontWeight: 800, fontSize: '0.95rem' }}
             >
               {loggingIn ? 'Signing In…' : '🚚 Login to Delivery Dashboard'}
             </button>
+
+            {/* Quick Demo Fill Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setLoginPhone('9812345678');
+                setLoginPassword('Delivery@123');
+              }}
+              style={{
+                background: '#F8FAFC',
+                border: '1px dashed #CBD5E1',
+                padding: '0.5rem',
+                borderRadius: '6px',
+                fontSize: '0.78rem',
+                color: '#64748B',
+                cursor: 'pointer',
+                textAlign: 'center'
+              }}
+            >
+              ⚡ Click here to auto-fill Delivery Boy Demo (9812345678)
+            </button>
           </form>
 
-          <div style={{ marginTop: '1.75rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>BPS Fresh Mills</span>
+          <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <InstallPwaButton portalType="delivery" style={{ padding: '0.4rem 0.8rem', fontSize: '0.78rem' }} />
             <button onClick={() => navigate('home')} style={{ background: 'none', border: 'none', color: '#2E8B57', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}>
               Back to Store
             </button>
