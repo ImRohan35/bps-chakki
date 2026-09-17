@@ -6,11 +6,13 @@ import {
   Search,
   Menu,
   X,
-  Sun,
-  Moon,
   Truck,
   ShieldCheck,
-  LogOut
+  CheckCircle2,
+  Phone,
+  LogOut,
+  Sparkles,
+  BookOpen
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
@@ -26,73 +28,229 @@ export default function Navbar({ currentRoute, navigate, onOpenSearch }) {
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [recipesModalOpen, setRecipesModalOpen] = useState(false);
 
   const handleNav = (route) => {
+    if (route === 'recipes') {
+      setRecipesModalOpen(true);
+      return;
+    }
+    if (route === 'our-process') {
+      if (currentRoute === 'home') {
+        const el = document.getElementById('farm-to-table');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+          return;
+        }
+      }
+      navigate('about');
+      return;
+    }
+    if (route === 'offers') {
+      if (currentRoute === 'home') {
+        const el = document.getElementById('offers-section');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+          return;
+        }
+      }
+      navigate('shop');
+      return;
+    }
+
     navigate(route);
     setMobileMenuOpen(false);
     setUserDropdownOpen(false);
   };
 
   return (
-    <header className="header-wrapper">
+    <header className="header-wrapper" style={{ position: 'sticky', top: 0, zIndex: 900, background: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+      {/* ── 1. TOP ANNOUNCEMENT BAR (Reference Design) ── */}
+      <div style={{
+        backgroundColor: '#0B3B24',
+        color: '#FFFFFF',
+        fontSize: '0.78rem',
+        padding: '0.45rem 1.25rem',
+        borderBottom: '1px solid rgba(255,255,255,0.08)'
+      }}>
+        <div className="container" style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '0.5rem'
+        }}>
+          {/* Left Highlights */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
+              <Truck size={14} color="#C9A44C" /> Free Delivery within 15 KM
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
+              <CheckCircle2 size={14} color="#16A34A" /> 100% Pure & Natural
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
+              <ShieldCheck size={14} color="#C9A44C" /> Cash on Delivery Available
+            </span>
+          </div>
 
-      {/* Main Flourist-Style Navigation Bar */}
-      <div className="container">
-        {/* Top Tier: Left delivery tag / mobile menu, Center Brand, Right Action Icons */}
-        <div className="flourist-nav-top">
-          {/* Left: mobile menu toggle */}
-          <div className="flourist-nav-left">
+          {/* Right Links & Social */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+            <button
+              onClick={() => handleNav('tracking')}
+              style={{ background: 'none', border: 'none', color: '#FFFFFF', fontSize: '0.78rem', cursor: 'pointer', fontWeight: 600, padding: 0 }}
+            >
+              Track Order
+            </button>
+            <span style={{ opacity: 0.4 }}>|</span>
+            <button
+              onClick={() => handleNav('contact')}
+              style={{ background: 'none', border: 'none', color: '#FFFFFF', fontSize: '0.78rem', cursor: 'pointer', fontWeight: 600, padding: 0 }}
+            >
+              Help & Support
+            </button>
+            <span style={{ opacity: 0.4 }}>|</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <a href="https://wa.me/919876543210" target="_blank" rel="noreferrer" style={{ color: '#FFFFFF', opacity: 0.9 }} title="WhatsApp">
+                <Phone size={13} />
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 2. MAIN NAVBAR ── */}
+      <div className="container" style={{ padding: '0.75rem 1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1.25rem' }}>
+          {/* Left: Mobile Menu Toggle + Brand Logo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="action-icon-btn mobile-toggle-btn"
               aria-label="Toggle navigation menu"
               id="mobile-menu-toggle-btn"
+              style={{ display: 'none' }}
             >
               {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
-          </div>
 
-          {/* Centered Brand Title & Logo Emblem */}
-          <div
-            onClick={() => handleNav('home')}
-            className="flourist-brand"
-            style={{ cursor: 'pointer' }}
-            id="brand-home-link"
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.65rem' }}>
+            <div
+              onClick={() => handleNav('home')}
+              style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem' }}
+              id="brand-home-link"
+            >
               <img
                 src="/logo.png"
                 alt="BPS Fresh Mills Logo"
-                className="flourist-logo-img"
+                style={{ width: 44, height: 44, objectFit: 'contain' }}
               />
-              <span className="flourist-brand-text">BPS Fresh Mills</span>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontWeight: 900, fontSize: '1.25rem', color: '#0B3B24', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+                  BPS Fresh Mills
+                </span>
+                <span style={{ fontSize: '0.72rem', color: '#667085', fontWeight: 600, marginTop: '2px' }}>
+                  Pure Atta. Healthier Tomorrow.
+                </span>
+              </div>
             </div>
-            <span className="flourist-brand-sub">Freshly Milled. Naturally Good.</span>
           </div>
 
-          {/* Right Action Icons (Flourist minimalist icons: User, Search, Wishlist, Cart) */}
-          <div className="flourist-nav-right" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            {/* Quick Access Badges for Delivery & Admin */}
+          {/* Center: Desktop Navigation Links (matching reference) */}
+          <nav className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '1.75rem' }}>
+            {[
+              { id: 'home', label: 'Home', route: 'home' },
+              { id: 'shop', label: 'Shop', route: 'shop' },
+              { id: 'about', label: 'About Us', route: 'about' },
+              { id: 'our-process', label: 'Our Process', route: 'our-process' },
+              { id: 'recipes', label: 'Recipes', route: 'recipes' },
+              { id: 'offers', label: 'Offers', route: 'offers' },
+              { id: 'contact', label: 'Contact', route: 'contact' },
+            ].map(link => {
+              const active = currentRoute === link.route;
+              return (
+                <button
+                  key={link.id}
+                  onClick={() => handleNav(link.route)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: '0.4rem 0',
+                    fontSize: '0.92rem',
+                    fontWeight: active ? 800 : 600,
+                    color: active ? '#0B3B24' : '#374151',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    transition: 'color 0.15s ease'
+                  }}
+                >
+                  {link.label}
+                  {active && (
+                    <span style={{
+                      position: 'absolute',
+                      bottom: -2,
+                      left: 0,
+                      right: 0,
+                      height: '2.5px',
+                      backgroundColor: '#16A34A',
+                      borderRadius: '2px'
+                    }} />
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Right: Search Input + User + Cart */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            {/* Embedded Search Input */}
+            <div
+              onClick={onOpenSearch}
+              style={{
+                position: 'relative',
+                cursor: 'pointer',
+                minWidth: '220px',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+              className="desktop-only"
+            >
+              <Search size={15} style={{ position: 'absolute', left: 12, color: '#9CA3AF' }} />
+              <input
+                readOnly
+                placeholder="Search for atta, besan, multigrain..."
+                style={{
+                  width: '100%',
+                  padding: '0.45rem 0.85rem 0.45rem 2.2rem',
+                  fontSize: '0.82rem',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '999px',
+                  background: '#F9FAFB',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  color: '#374151'
+                }}
+              />
+            </div>
+
+            {/* Quick Badges for Delivery & Admin */}
             {isDelivery && (
               <button
                 onClick={() => handleNav('delivery')}
                 style={{
-                  backgroundColor: '#2E8B57',
+                  backgroundColor: '#16A34A',
                   color: '#FFFFFF',
                   fontWeight: 800,
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '0.42rem 0.85rem',
+                  padding: '0.4rem 0.85rem',
                   borderRadius: '20px',
-                  fontSize: '0.82rem',
-                  boxShadow: '0 2px 8px rgba(46,139,87,0.3)',
+                  fontSize: '0.8rem',
                   border: 'none',
                   cursor: 'pointer'
                 }}
                 title="Open Delivery Boy Portal"
               >
-                <Truck size={14} /> My Deliveries
+                <Truck size={14} /> Deliveries
               </button>
             )}
 
@@ -100,25 +258,25 @@ export default function Navbar({ currentRoute, navigate, onOpenSearch }) {
               <button
                 onClick={() => handleNav('admin')}
                 style={{
-                  backgroundColor: 'var(--earth-brown)',
+                  backgroundColor: '#0B3B24',
                   color: '#FAF6F0',
                   fontWeight: 800,
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '0.42rem 0.85rem',
+                  padding: '0.4rem 0.85rem',
                   borderRadius: '20px',
-                  fontSize: '0.82rem',
+                  fontSize: '0.8rem',
                   border: 'none',
                   cursor: 'pointer'
                 }}
                 title="Open Admin Dashboard"
               >
-                <ShieldCheck size={14} /> Admin Panel
+                <ShieldCheck size={14} /> Admin
               </button>
             )}
 
-            {/* Account / User Menu */}
+            {/* User Profile / Login */}
             <div style={{ position: 'relative' }}>
               <button
                 onClick={() => {
@@ -129,10 +287,11 @@ export default function Navbar({ currentRoute, navigate, onOpenSearch }) {
                   }
                 }}
                 className="action-icon-btn"
-                title={isAuthenticated ? user.name : 'Account'}
+                title={isAuthenticated ? user.name : 'Login / Signup'}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', color: '#1F2937', display: 'flex', alignItems: 'center' }}
                 id="account-btn"
               >
-                <User size={19} />
+                <User size={20} />
               </button>
 
               {/* User Dropdown */}
@@ -143,10 +302,10 @@ export default function Navbar({ currentRoute, navigate, onOpenSearch }) {
                     top: '110%',
                     right: 0,
                     width: '210px',
-                    backgroundColor: 'var(--bg-surface)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: 'var(--radius-md)',
-                    boxShadow: 'var(--shadow-lg)',
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E5E7EB',
+                    borderRadius: '10px',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
                     padding: '0.5rem',
                     zIndex: 200,
                     display: 'flex',
@@ -154,99 +313,31 @@ export default function Navbar({ currentRoute, navigate, onOpenSearch }) {
                     gap: '0.25rem'
                   }}
                 >
-                  <div style={{ padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border-subtle)', marginBottom: '0.25rem' }}>
-                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{user.name}</div>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{user.mobile}</div>
-                    <span className={`badge ${user.role === 'admin' ? 'badge-red' : user.role === 'delivery' ? 'badge-amber' : 'badge-green'}`} style={{ marginTop: '4px' }}>
+                  <div style={{ padding: '0.5rem 0.75rem', borderBottom: '1px solid #E5E7EB', marginBottom: '0.25rem' }}>
+                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#111827' }}>{user.name}</div>
+                    <div style={{ fontSize: '0.78rem', color: '#64748B' }}>{user.mobile}</div>
+                    <span style={{ display: 'inline-block', fontSize: '0.7rem', fontWeight: 800, background: '#DEF7EC', color: '#03543F', padding: '2px 6px', borderRadius: '4px', marginTop: '4px' }}>
                       {user.role}
                     </span>
                   </div>
 
-                  <button
-                    onClick={() => handleNav('account')}
-                    className="btn btn-sm btn-outline"
-                    style={{ justifyContent: 'flex-start', border: 'none', width: '100%', padding: '0.5rem 0.75rem' }}
-                  >
-                    <User size={15} /> My Account
+                  <button onClick={() => handleNav('account')} style={{ textAlign: 'left', background: 'none', border: 'none', padding: '0.5rem 0.75rem', fontSize: '0.86rem', fontWeight: 600, color: '#374151', cursor: 'pointer' }}>
+                    My Account
                   </button>
-
-                  <button
-                    onClick={() => handleNav('orders')}
-                    className="btn btn-sm btn-outline"
-                    style={{ justifyContent: 'flex-start', border: 'none', width: '100%', padding: '0.5rem 0.75rem' }}
-                  >
-                    <ShoppingBag size={15} /> My Orders
+                  <button onClick={() => handleNav('orders')} style={{ textAlign: 'left', background: 'none', border: 'none', padding: '0.5rem 0.75rem', fontSize: '0.86rem', fontWeight: 600, color: '#374151', cursor: 'pointer' }}>
+                    My Orders
                   </button>
-
                   {isAdmin && (
-                    <button
-                      onClick={() => handleNav('admin')}
-                      className="btn btn-sm"
-                      style={{
-                        justifyContent: 'flex-start',
-                        backgroundColor: 'var(--earth-brown)',
-                        color: '#FAF6F0',
-                        width: '100%',
-                        padding: '0.5rem 0.75rem'
-                      }}
-                    >
-                      <ShieldCheck size={15} /> Admin Panel
+                    <button onClick={() => handleNav('admin')} style={{ textAlign: 'left', background: 'none', border: 'none', padding: '0.5rem 0.75rem', fontSize: '0.86rem', fontWeight: 700, color: '#0B3B24', cursor: 'pointer' }}>
+                      Admin Panel
                     </button>
                   )}
-
-                  {(isDelivery || isAdmin) && (
-                    <button
-                      onClick={() => handleNav('delivery')}
-                      className="btn btn-sm"
-                      style={{
-                        justifyContent: 'flex-start',
-                        backgroundColor: 'var(--nature-green)',
-                        color: '#FFFFFF',
-                        width: '100%',
-                        padding: '0.5rem 0.75rem'
-                      }}
-                    >
-                      <Truck size={15} /> Delivery Portal
-                    </button>
-                  )}
-
-                  <button
-                    onClick={() => {
-                      logout();
-                      setUserDropdownOpen(false);
-                      handleNav('home');
-                    }}
-                    className="btn btn-sm"
-                    style={{
-                      justifyContent: 'flex-start',
-                      color: 'var(--danger-rust)',
-                      backgroundColor: 'var(--danger-light)',
-                      width: '100%',
-                      padding: '0.5rem 0.75rem',
-                      marginTop: '0.35rem'
-                    }}
-                  >
-                    <LogOut size={15} /> Logout
+                  <button onClick={() => { logout(); setUserDropdownOpen(false); handleNav('home'); }} style={{ textAlign: 'left', background: 'none', border: 'none', padding: '0.5rem 0.75rem', fontSize: '0.86rem', fontWeight: 700, color: '#DC2626', cursor: 'pointer' }}>
+                    Logout
                   </button>
                 </div>
               )}
             </div>
-
-            {/* Theme Toggle System (Light / Dark / System Default) */}
-            <ThemeSwitcher variant="dropdown" />
-
-            {/* Real-Time Notification Bell */}
-            {isAuthenticated && <NotificationBell navigate={navigate} role={user?.role || 'customer'} />}
-
-            {/* Search Trigger */}
-            <button
-              onClick={onOpenSearch}
-              className="action-icon-btn"
-              title="Search Flours & Grains"
-              id="search-btn"
-            >
-              <Search size={19} />
-            </button>
 
             {/* Wishlist */}
             <button
@@ -254,214 +345,156 @@ export default function Navbar({ currentRoute, navigate, onOpenSearch }) {
               className="action-icon-btn"
               title="Wishlist"
               id="wishlist-btn"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', color: '#1F2937', position: 'relative', display: 'flex', alignItems: 'center' }}
             >
-              <Heart size={19} />
-              {wishlistCount > 0 && <span className="badge-count">{wishlistCount}</span>}
+              <Heart size={20} />
+              {wishlistCount > 0 && (
+                <span style={{
+                  position: 'absolute', top: 0, right: -2, background: '#16A34A', color: '#FFFFFF',
+                  fontSize: '0.65rem', fontWeight: 800, width: 16, height: 16, borderRadius: '50%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                  {wishlistCount}
+                </span>
+              )}
             </button>
 
             {/* Cart Bag */}
             <button
               onClick={() => handleNav('cart')}
-              className="action-icon-btn cart-icon-highlight"
               title="Cart"
               id="cart-btn"
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer', padding: '6px', color: '#0B3B24',
+                position: 'relative', display: 'flex', alignItems: 'center'
+              }}
             >
-              <ShoppingBag size={19} />
-              {totalItemCount > 0 && <span className="badge-count">{totalItemCount}</span>}
+              <ShoppingBag size={21} />
+              <span style={{
+                position: 'absolute', top: 0, right: -4, background: '#16A34A', color: '#FFFFFF',
+                fontSize: '0.65rem', fontWeight: 900, width: 17, height: 17, borderRadius: '50%',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                {totalItemCount}
+              </span>
             </button>
           </div>
         </div>
-
-        {/* Bottom Tier: Centered Flourist Menu Links */}
-        <div className="flourist-nav-bottom desktop-only">
-          <ul className="flourist-nav-links">
-            <li>
-              <button
-                onClick={() => handleNav('shop')}
-                className={`flourist-link ${currentRoute === 'shop' ? 'active' : ''}`}
-              >
-                Shop
-              </button>
-            </li>
-            <li>
-              <button
-                onClick={() => handleNav('home')}
-                className={`flourist-link ${currentRoute === 'home' ? 'active' : ''}`}
-              >
-                Our Chakki
-              </button>
-            </li>
-            <li>
-              <button
-                onClick={() => handleNav('about')}
-                className={`flourist-link ${currentRoute === 'about' ? 'active' : ''}`}
-              >
-                About
-              </button>
-            </li>
-            <li>
-              <button
-                onClick={() => handleNav('contact')}
-                className={`flourist-link ${currentRoute === 'contact' ? 'active' : ''}`}
-              >
-                Contact
-              </button>
-            </li>
-            {isDelivery && (
-              <li>
-                <button
-                  onClick={() => handleNav('delivery')}
-                  className={`flourist-link ${currentRoute === 'delivery' ? 'active' : ''}`}
-                  style={{ color: '#2E8B57', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                >
-                  <Truck size={14} /> My Deliveries
-                </button>
-              </li>
-            )}
-            {isAdmin && (
-              <li>
-                <button
-                  onClick={() => handleNav('admin')}
-                  className={`flourist-link ${currentRoute === 'admin' ? 'active' : ''}`}
-                  style={{ color: 'var(--earth-brown)', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                >
-                  <ShieldCheck size={14} /> Admin Panel
-                </button>
-              </li>
-            )}
-          </ul>
-        </div>
       </div>
 
+      {/* ── RECIPES MODAL ── */}
+      {recipesModalOpen && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)',
+            zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'
+          }}
+          onClick={() => setRecipesModalOpen(false)}
+        >
+          <div
+            style={{
+              backgroundColor: '#FFFFFF', borderRadius: '16px', maxWidth: '640px', width: '100%',
+              padding: '1.75rem', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <BookOpen size={22} color="#16A34A" />
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, color: '#0B3B24' }}>
+                  BPS Chakki Kitchen Recipes
+                </h3>
+              </div>
+              <button onClick={() => setRecipesModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}>
+                <X size={20} />
+              </button>
+            </div>
 
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ padding: '1rem', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                <div style={{ fontWeight: 800, color: '#0B3B24', fontSize: '1.05rem' }}>1. Soft & Puffed Phulka Rotis</div>
+                <div style={{ fontSize: '0.82rem', color: '#16A34A', fontWeight: 700, margin: '2px 0 6px' }}>Best with: Premium Chakki Atta</div>
+                <div style={{ fontSize: '0.85rem', color: '#4B5563', lineHeight: 1.5 }}>
+                  Knead 2 cups of BPS Premium Chakki Atta with warm water and a pinch of salt. Let dough rest for 15 minutes. Roll into thin discs and cook on medium flame until it naturally puffs like a balloon.
+                </div>
+              </div>
+
+              <div style={{ padding: '1rem', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                <div style={{ fontWeight: 800, color: '#0B3B24', fontSize: '1.05rem' }}>2. High-Protein Desi Chana Chilla</div>
+                <div style={{ fontSize: '0.82rem', color: '#16A34A', fontWeight: 700, margin: '2px 0 6px' }}>Best with: Desi Chana Besan</div>
+                <div style={{ fontSize: '0.85rem', color: '#4B5563', lineHeight: 1.5 }}>
+                  Whisk 1 cup BPS Desi Chana Besan with finely chopped onions, green chilies, grated ginger, ajwain, and fresh coriander. Pour onto a lightly oiled cast-iron tawa and cook until golden crisp on both sides.
+                </div>
+              </div>
+
+              <div style={{ padding: '1rem', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                <div style={{ fontWeight: 800, color: '#0B3B24', fontSize: '1.05rem' }}>3. Traditional Bajra Bhakri with Desi Makhan</div>
+                <div style={{ fontSize: '0.82rem', color: '#16A34A', fontWeight: 700, margin: '2px 0 6px' }}>Best with: Fresh Stone-Milled Bajra Atta</div>
+                <div style={{ fontSize: '0.85rem', color: '#4B5563', lineHeight: 1.5 }}>
+                  Knead BPS Bajra Atta with lukewarm water. Gently pat with palms on a flat surface to form thick flatbreads. Roast on clay or iron tawa and top with generous homemade white butter.
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '1.5rem', textAlign: 'right' }}>
+              <button
+                onClick={() => { setRecipesModalOpen(false); handleNav('shop'); }}
+                style={{ padding: '0.65rem 1.25rem', backgroundColor: '#0B3B24', color: '#FFFFFF', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Explore Flours for These Recipes →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Navigation Drawer */}
       {mobileMenuOpen && (
         <div
-          className="flourist-mobile-drawer"
+          className="mobile-only"
           style={{
             position: 'fixed',
-            inset: '0',
-            top: '68px',
-            backgroundColor: 'var(--bg-surface)',
-            zIndex: 1000,
+            inset: 0,
+            top: '100px',
+            backgroundColor: '#FFFFFF',
+            zIndex: 999,
             padding: '1.5rem',
-            paddingBottom: '120px',
             display: 'flex',
             flexDirection: 'column',
             gap: '1rem',
-            borderTop: '1px solid var(--border-subtle)',
             overflowY: 'auto'
           }}
         >
-          <button
-            onClick={() => handleNav('home')}
-            className={`btn btn-outline ${currentRoute === 'home' ? 'btn-primary' : ''}`}
-            style={{ justifyContent: 'flex-start' }}
-          >
-            Home
-          </button>
-          <button
-            onClick={() => handleNav('shop')}
-            className={`btn btn-outline ${currentRoute === 'shop' ? 'btn-primary' : ''}`}
-            style={{ justifyContent: 'flex-start' }}
-          >
-            Shop All Flours
-          </button>
-          <button
-            onClick={() => handleNav('about')}
-            className={`btn btn-outline ${currentRoute === 'about' ? 'btn-primary' : ''}`}
-            style={{ justifyContent: 'flex-start' }}
-          >
-            About BPS Fresh Mills
-          </button>
-          <button
-            onClick={() => handleNav('contact')}
-            className={`btn btn-outline ${currentRoute === 'contact' ? 'btn-primary' : ''}`}
-            style={{ justifyContent: 'flex-start' }}
-          >
-            Contact & Directions
-          </button>
-
-          <div style={{ padding: '0.25rem 0' }}>
-            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Theme Mode
-            </div>
-            <ThemeSwitcher variant="pills" />
-          </div>
-
-          <hr style={{ borderColor: 'var(--border-subtle)', margin: '0.5rem 0' }} />
-
-          {isAuthenticated ? (
-            <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontWeight: 700 }}>{user.name}</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{user.mobile}</div>
-                </div>
-                <span className="badge badge-green">{user.role}</span>
-              </div>
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {[
+              { id: 'home', label: 'Home', route: 'home' },
+              { id: 'shop', label: 'Shop', route: 'shop' },
+              { id: 'about', label: 'About Us', route: 'about' },
+              { id: 'our-process', label: 'Our Process', route: 'our-process' },
+              { id: 'recipes', label: 'Recipes', route: 'recipes' },
+              { id: 'offers', label: 'Offers', route: 'offers' },
+              { id: 'contact', label: 'Contact', route: 'contact' },
+              { id: 'tracking', label: 'Track Order', route: 'tracking' }
+            ].map(link => (
               <button
-                onClick={() => handleNav('account')}
-                className="btn btn-outline"
-                style={{ justifyContent: 'flex-start' }}
-              >
-                <User size={16} /> My Account
-              </button>
-              <button
-                onClick={() => handleNav('orders')}
-                className="btn btn-outline"
-                style={{ justifyContent: 'flex-start' }}
-              >
-                <ShoppingBag size={16} /> My Orders & Tracking
-              </button>
-              {isAdmin && (
-                <button
-                  onClick={() => handleNav('admin')}
-                  className="btn btn-secondary"
-                  style={{ justifyContent: 'flex-start' }}
-                >
-                  <ShieldCheck size={16} /> Admin Dashboard
-                </button>
-              )}
-              {(isDelivery || isAdmin) && (
-                <button
-                  onClick={() => handleNav('delivery')}
-                  className="btn btn-green"
-                  style={{ justifyContent: 'flex-start' }}
-                >
-                  <Truck size={16} /> Delivery Portal
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  logout();
-                  setMobileMenuOpen(false);
+                key={link.id}
+                onClick={() => handleNav(link.route)}
+                style={{
+                  textAlign: 'left',
+                  background: currentRoute === link.route ? '#DEF7EC' : 'none',
+                  color: currentRoute === link.route ? '#0B3B24' : '#1F2937',
+                  border: 'none',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '8px',
+                  fontSize: '1rem',
+                  fontWeight: currentRoute === link.route ? 800 : 600,
+                  cursor: 'pointer'
                 }}
-                className="btn"
-                style={{ color: 'var(--danger-rust)', backgroundColor: 'var(--danger-light)', justifyContent: 'flex-start' }}
               >
-                <LogOut size={16} /> Logout
+                {link.label}
               </button>
-            </>
-          ) : (
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button
-                onClick={() => handleNav('login')}
-                className="btn btn-primary"
-                style={{ flex: 1 }}
-              >
-                Login
-              </button>
-              <button
-                onClick={() => handleNav('signup')}
-                className="btn btn-outline"
-                style={{ flex: 1 }}
-              >
-                Sign Up
-              </button>
-            </div>
-          )}
+            ))}
+          </nav>
         </div>
       )}
 

@@ -17,8 +17,32 @@ import { useAuth } from '../context/AuthContext';
 import { fetchApi } from '../utils/api';
 
 export default function Checkout({ navigate, onOrderPlaced }) {
-  const { cartItems, subtotal, discount, deliveryCharge, finalTotal, coupon, clearCart } = useCart();
+  const { cartItems, subtotal, discount, deliveryCharge, finalTotal, coupon, clearCart, storeSettings } = useCart();
   const { user, isAuthenticated } = useAuth();
+
+  const [buyNowItem, setBuyNowItem] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('bps_buy_now_item');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const isBuyNow = !!buyNowItem;
+  const activeItems = isBuyNow ? [buyNowItem] : (cartItems || []);
+
+  const orderSubtotal = isBuyNow
+    ? (buyNowItem.price * (buyNowItem.quantity || 1))
+    : subtotal;
+
+  const orderDiscount = coupon ? Math.min(orderSubtotal, coupon.discount) : 0;
+  const orderDeliveryCharge =
+    orderSubtotal === 0 || orderSubtotal >= (storeSettings?.freeDeliveryThreshold || 500)
+      ? 0
+      : (storeSettings?.deliveryCharge !== undefined ? storeSettings.deliveryCharge : 40);
+
+  const orderFinalTotal = Math.max(0, orderSubtotal - orderDiscount + orderDeliveryCharge);
 
   const [addresses, setAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState('');
@@ -75,12 +99,12 @@ export default function Checkout({ navigate, onOrderPlaced }) {
     );
   };
 
-  // Redirect if cart is empty
+  // Redirect if cart is empty AND no buy-now item
   useEffect(() => {
-    if (cartItems.length === 0) {
+    if (!buyNowItem && (!cartItems || cartItems.length === 0)) {
       navigate('cart');
     }
-  }, [cartItems, navigate]);
+  }, [buyNowItem, cartItems, navigate]);
 
   // Load user saved addresses
   useEffect(() => {
@@ -168,17 +192,12 @@ export default function Checkout({ navigate, onOrderPlaced }) {
       return;
     }
 
-    // Strict 15 KM Check Enforcement
-    if (!distanceInfo.isDeliverable) {
-      setErrorMessage('Sorry, delivery is currently available within 15 KM only. Orders outside this radius cannot be processed.');
-      return;
-    }
-
+    // Place order (delivery condition check removed)
     setSubmittingOrder(true);
 
     try {
       const orderPayload = {
-        items: cartItems.map(item => ({
+        items: activeItems.map(item => ({
           productId: item.productId,
           name: item.name,
           weight: item.weight,
@@ -198,7 +217,12 @@ export default function Checkout({ navigate, onOrderPlaced }) {
       });
 
       if (res.success && res.order) {
-        clearCart();
+        if (isBuyNow) {
+          sessionStorage.removeItem('bps_buy_now_item');
+          setBuyNowItem(null);
+        } else {
+          clearCart();
+        }
         if (onOrderPlaced) {
           onOrderPlaced(res.order);
         }
@@ -301,7 +325,7 @@ export default function Checkout({ navigate, onOrderPlaced }) {
                       </div>
                       {addr.distanceKm && (
                         <div style={{ fontSize: '0.78rem', color: 'var(--nature-green)', fontWeight: 700, marginTop: '4px' }}>
-                          Distance: ~{addr.distanceKm} KM from mill (Within 15 KM radius)
+                          Distance: ~{addr.distanceKm} KM from mill
                         </div>
                       )}
                     </div>
@@ -449,18 +473,18 @@ export default function Checkout({ navigate, onOrderPlaced }) {
                       <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Good News — We Deliver Here!</span>
                       {distanceInfo.distanceKm && (
                         <div style={{ fontSize: '0.82rem', opacity: 0.9 }}>
-                          Distance: ~{distanceInfo.distanceKm} KM from Lakhanpur Mill (Within 15 KM boundary)
+                          Distance: ~{distanceInfo.distanceKm} KM from Lakhanpur Mill
                         </div>
                       )}
                     </div>
                   </>
                 ) : (
                   <>
-                    <AlertCircle size={22} color="var(--danger-rust, #C0392B)" />
+                    <CheckCircle2 size={22} color="var(--primary-fresh-green, #2E8B57)" />
                     <div>
-                      <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Sorry, This Area Is Outside Our Delivery Range</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Good News — We Deliver Here!</span>
                       <div style={{ fontSize: '0.82rem', opacity: 0.9 }}>
-                        {distanceInfo.message || 'Delivery is strictly limited to 15 KM from Lakhanpur, Cholapur, Varanasi.'}
+                        {distanceInfo.message || 'Fresh doorstep delivery available.'}
                       </div>
                     </div>
                   </>
@@ -542,12 +566,19 @@ export default function Checkout({ navigate, onOrderPlaced }) {
               boxShadow: 'var(--shadow-sm)'
             }}
           >
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
-              Order Summary
-            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                Order Summary
+              </h3>
+              {isBuyNow && (
+                <span style={{ fontSize: '0.75rem', fontWeight: 800, background: '#173D32', color: '#C9A44C', padding: '3px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  ⚡ Instant Buy Now
+                </span>
+              )}
+            </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
-              {cartItems.map((item, idx) => (
+              {activeItems.map((item, idx) => (
                 <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <div style={{ width: '48px', height: '48px', backgroundColor: 'var(--bg-secondary)', borderRadius: '8px', overflow: 'hidden' }}>
@@ -568,19 +599,25 @@ export default function Checkout({ navigate, onOrderPlaced }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.95rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1.5rem', marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
                 <span>Subtotal</span>
-                <span>₹{subtotal}</span>
+                <span>₹{orderSubtotal}</span>
               </div>
+              {orderDiscount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16A34A', fontWeight: 700 }}>
+                  <span>Coupon Discount</span>
+                  <span>-₹{orderDiscount}</span>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
                 <span>Delivery Charge</span>
-                <span style={{ color: deliveryCharge === 0 ? 'var(--nature-green)' : 'inherit', fontWeight: 600 }}>
-                  {deliveryCharge === 0 ? 'FREE' : `₹${deliveryCharge}`}
+                <span style={{ color: orderDeliveryCharge === 0 ? 'var(--nature-green)' : 'inherit', fontWeight: 600 }}>
+                  {orderDeliveryCharge === 0 ? 'FREE' : `₹${orderDeliveryCharge}`}
                 </span>
               </div>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', borderTop: '1px solid var(--border-subtle)', paddingTop: '1.5rem' }}>
               <span>Total</span>
-              <span>₹{finalTotal}</span>
+              <span>₹{orderFinalTotal}</span>
             </div>
           </div>
 
@@ -611,7 +648,7 @@ export default function Checkout({ navigate, onOrderPlaced }) {
 
             <button
               onClick={handlePlaceOrder}
-              disabled={submittingOrder || distanceInfo.isDeliverable === false || distanceInfo.isDeliverable === null}
+              disabled={submittingOrder || distanceInfo.isDeliverable === false}
               style={{
                 width: '100%',
                 padding: '1.15rem',

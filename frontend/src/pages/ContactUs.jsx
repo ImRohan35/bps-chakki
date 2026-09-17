@@ -52,7 +52,7 @@ export default function ContactUs() {
           Contact BPS Fresh Mills
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: 1.6 }}>
-          Have questions about grain varieties, custom grind coarseness, or delivery within 15 KM? Reach out to our chakki team directly.
+          Have questions about grain varieties, custom grind coarseness, or doorstep delivery? Reach out to our chakki team directly.
         </p>
       </div>
 

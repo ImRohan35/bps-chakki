@@ -106,6 +106,16 @@ app.use('/api/support', ticketRoutes);
 app.use('/api/admin/ai-assistant', aiAssistantRoutes);
 app.use('/api/admin/system', backupRoutes);
 
+// Public reviews endpoint
+app.get('/api/reviews', (req, res) => {
+  try {
+    const reviews = db.Reviews ? db.Reviews.find(r => r.status === 'Approved' || r.status === 'approved' || !r.status) : [];
+    res.json({ success: true, reviews: reviews || [] });
+  } catch (err) {
+    res.json({ success: true, reviews: [] });
+  }
+});
+
 // 4. Enhanced Production Health Check
 app.get('/api/health', (req, res) => {
   const uptime = Math.floor(process.uptime());

@@ -112,7 +112,7 @@ export default function InvoiceModal({ order, onClose }) {
                 Freshly Milled. Naturally Good.
               </div>
               <div style={{ fontSize: '0.78rem', color: '#64748B', marginTop: '4px' }}>
-                Stone Ground Chakki Atta • Premium Whole Grains • Local 15 KM Delivery
+                Stone Ground Chakki Atta • Premium Whole Grains • Fresh Doorstep Delivery
               </div>
             </div>
 

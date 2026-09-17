@@ -39,9 +39,44 @@ export function CartProvider({ children }) {
       .catch(() => {});
   }, []);
 
-  // Save cart to localStorage
+  // Sync with backend on mount if user is logged in
+  useEffect(() => {
+    const token = localStorage.getItem('bps_token');
+    if (!token) return;
+
+    fetchApi('/auth/cart')
+      .then(res => {
+        if (res.success && Array.isArray(res.cart) && res.cart.length > 0) {
+          setCartItems(prev => {
+            if (!prev || prev.length === 0) return res.cart;
+            const merged = [...res.cart];
+            prev.forEach(localItem => {
+              const idx = merged.findIndex(
+                m => m.productId === localItem.productId && m.weight === localItem.weight && (m.texture || 'Medium') === (localItem.texture || 'Medium')
+              );
+              if (idx > -1) {
+                merged[idx].quantity = Math.max(merged[idx].quantity, localItem.quantity);
+              } else {
+                merged.push(localItem);
+              }
+            });
+            return merged;
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Save cart to localStorage and DB
   useEffect(() => {
     localStorage.setItem('bps_cart', JSON.stringify(cartItems));
+    const token = localStorage.getItem('bps_token');
+    if (token) {
+      fetchApi('/auth/cart', {
+        method: 'POST',
+        body: JSON.stringify({ cart: cartItems })
+      }).catch(() => {});
+    }
   }, [cartItems]);
 
   // Save coupon to localStorage

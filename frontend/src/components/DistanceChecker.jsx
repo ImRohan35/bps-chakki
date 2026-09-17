@@ -13,7 +13,7 @@ export default function DistanceChecker() {
     { name: 'Chaubeypur (6.8 KM)', lat: 25.4300, lon: 83.1000 },
     { name: 'Babatpur Airport (11.2 KM)', lat: 25.4500, lon: 82.8600 },
     { name: 'Sarnath (13.5 KM)', lat: 25.3715, lon: 83.0252 },
-    { name: 'Mughalsarai (28 KM - Outside)', lat: 25.2800, lon: 83.1200 }
+    { name: 'Mughalsarai (28 KM)', lat: 25.2800, lon: 83.1200 }
   ];
 
   const handleCheckCoordinate = async (lat, lon, label) => {
@@ -90,10 +90,10 @@ export default function DistanceChecker() {
           </div>
           <div>
             <h4 style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
-              Check Delivery In Your Area (15 KM Radius)
+              Check Delivery In Your Area
             </h4>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-              Milled at Lakhanpur, Cholapur, Varanasi 221101 • Delivered fresh within 15 KM
+              Milled at Lakhanpur, Cholapur, Varanasi 221101 • Fresh doorstep delivery
             </p>
           </div>
         </div>
@@ -161,14 +161,10 @@ export default function DistanceChecker() {
           )}
           <div>
             <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>
-              {result.isDeliverable
-                ? `Good News — We Deliver Here (${result.distanceKm} KM from our mill)`
-                : 'Sorry, This Area Is Outside Our Delivery Range'}
+              Good News — Doorstep Delivery Available {result.distanceKm ? `(~${result.distanceKm} KM from mill)` : ''}
             </div>
             <div style={{ fontSize: '0.84rem', marginTop: '2px' }}>
-              {result.isDeliverable
-                ? `Your location is within our fresh delivery radius. Order today for doorstep delivery!`
-                : result.message}
+              We deliver fresh stone-ground flours straight to your address. Order today!
             </div>
           </div>
         </div>

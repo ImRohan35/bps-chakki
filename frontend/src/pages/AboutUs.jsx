@@ -90,9 +90,9 @@ export default function AboutUs({ navigate }) {
               <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'var(--wheat-light)', color: 'var(--earth-brown)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem', fontSize: '1.4rem' }}>
                 🚚
               </div>
-              <h4 style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '0.5rem' }}>15 KM Micro Delivery Area</h4>
+              <h4 style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '0.5rem' }}>Fresh Stone Mill Delivery</h4>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6 }}>
-                By maintaining a strict 15 KM local service boundary, our deliveries arrive same-day or within hours of fresh grinding with zero chemical preservatives.
+                By milling fresh on demand, our deliveries arrive promptly after fresh stone grinding with zero chemical preservatives.
               </p>
             </div>
 
@@ -114,7 +114,7 @@ export default function AboutUs({ navigate }) {
             Experience Freshness You Can Taste
           </h3>
           <p style={{ color: '#D4C5B3', maxWidth: '520px', margin: '0 auto 1.5rem', fontSize: '0.95rem' }}>
-            Order your first pack of freshly stone-ground chakki flour today and enjoy doorstep delivery within 15 KM.
+            Order your first pack of freshly stone-ground chakki flour today and enjoy doorstep delivery.
           </p>
           <button onClick={() => navigate('shop')} className="btn btn-primary btn-lg">
             Explore All Flours <ArrowRight size={18} />

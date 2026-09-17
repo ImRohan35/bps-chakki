@@ -559,4 +559,71 @@ router.post('/recently-viewed', authenticate, (req, res) => {
   }
 });
 
+// 13. CART PERSISTENCE
+router.get('/cart', authenticate, (req, res) => {
+  try {
+    const user = db.Users.findById(req.user._id);
+    res.json({ success: true, cart: user?.cart || [] });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch cart' });
+  }
+});
+
+router.post('/cart', authenticate, (req, res) => {
+  try {
+    const { cart } = req.body;
+    const safeCart = Array.isArray(cart) ? cart : [];
+    db.Users.updateById(req.user._id, { cart: safeCart });
+    res.json({ success: true, cart: safeCart });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to save cart' });
+  }
+});
+
+// 14. WISHLIST PERSISTENCE
+router.get('/wishlist', authenticate, (req, res) => {
+  try {
+    const user = db.Users.findById(req.user._id);
+    res.json({ success: true, wishlist: user?.wishlist || [] });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch wishlist' });
+  }
+});
+
+router.post('/wishlist', authenticate, (req, res) => {
+  try {
+    const { product, wishlist } = req.body;
+    const user = db.Users.findById(req.user._id);
+    let list = user?.wishlist || [];
+
+    if (Array.isArray(wishlist)) {
+      list = wishlist;
+    } else if (product && product._id) {
+      const exists = list.some(item => (item._id || item.productId) === product._id);
+      if (!exists) {
+        list.push(product);
+      }
+    }
+
+    db.Users.updateById(req.user._id, { wishlist: list });
+    res.json({ success: true, wishlist: list });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to update wishlist' });
+  }
+});
+
+router.delete('/wishlist/:id', authenticate, (req, res) => {
+  try {
+    const user = db.Users.findById(req.user._id);
+    let list = user?.wishlist || [];
+    list = list.filter(item => (item._id || item.productId) !== req.params.id);
+
+    db.Users.updateById(req.user._id, { wishlist: list });
+    res.json({ success: true, wishlist: list });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to remove from wishlist' });
+  }
+});
+
 module.exports = router;
+

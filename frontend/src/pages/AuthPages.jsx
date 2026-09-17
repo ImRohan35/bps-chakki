@@ -119,7 +119,7 @@ export default function AuthPages({ mode = 'login', navigate, onAuthSuccess }) {
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginTop: '4px' }}>
             {currentMode === 'login' && 'Log in to order fresh chakki flour and track your deliveries'}
-            {currentMode === 'signup' && 'Join BPS Fresh Mills for doorstep delivery within 15 KM'}
+            {currentMode === 'signup' && 'Join BPS Fresh Mills for fresh doorstep delivery'}
             {currentMode === 'forgot' && 'Enter your mobile number to receive password reset OTP'}
           </p>
         </div>

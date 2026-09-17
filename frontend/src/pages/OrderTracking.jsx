@@ -364,7 +364,7 @@ export default function OrderTracking({ orderId, navigate, onReportIssue }) {
         <div style={{ backgroundColor: 'var(--bg-card)', padding: '1.5rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div>
             <h4 style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
-              Delivery Address (Within 15 KM)
+              Delivery Address
             </h4>
             <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
               <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{order.shippingAddress?.name || order.customerName}</div>

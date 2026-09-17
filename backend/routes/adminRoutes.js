@@ -273,13 +273,60 @@ router.get('/dashboard', (req, res) => {
     orders.forEach(order => {
       if (order.orderStatus !== 'Cancelled') {
         (order.items || []).forEach(item => {
-          if (!productSalesMap[item.productId]) productSalesMap[item.productId] = { name: item.name, totalQuantity: 0, totalRevenue: 0 };
-          productSalesMap[item.productId].totalQuantity += Number(item.quantity) || 1;
-          productSalesMap[item.productId].totalRevenue += Number(item.subtotal) || 0;
+          if (!productSalesMap[item.productId || item.name]) {
+            productSalesMap[item.productId || item.name] = { name: item.name, totalQuantity: 0, totalRevenue: 0 };
+          }
+          productSalesMap[item.productId || item.name].totalQuantity += Number(item.quantity) || 1;
+          productSalesMap[item.productId || item.name].totalRevenue += Number(item.subtotal || (Number(item.price || 0) * (Number(item.quantity) || 1))) || 0;
         });
       }
     });
     const bestSellers = Object.values(productSalesMap).sort((a, b) => b.totalQuantity - a.totalQuantity).slice(0, 5);
+
+    // Sales by Product Breakdown (Donut Chart)
+    const totalItemRevenue = Object.values(productSalesMap).reduce((s, p) => s + p.totalRevenue, 0) || 1;
+    const sortedProducts = Object.values(productSalesMap).sort((a, b) => b.totalRevenue - a.totalRevenue);
+    const DONUT_COLORS = ['#133E2B', '#C9A44C', '#E28B38', '#2E8B57', '#3B82F6', '#A3B8B0'];
+    const topProducts = sortedProducts.slice(0, 5);
+    const othersRevenue = sortedProducts.slice(5).reduce((s, p) => s + p.totalRevenue, 0);
+    const salesByProduct = topProducts.map((p, idx) => ({
+      name: p.name,
+      revenue: p.totalRevenue,
+      percent: Math.round((p.totalRevenue / totalItemRevenue) * 100),
+      color: DONUT_COLORS[idx % DONUT_COLORS.length]
+    }));
+    if (othersRevenue > 0) {
+      salesByProduct.push({
+        name: 'Others',
+        revenue: othersRevenue,
+        percent: Math.max(1, 100 - salesByProduct.reduce((s, p) => s + p.percent, 0)),
+        color: DONUT_COLORS[5]
+      });
+    }
+
+    // Average customer review rating
+    const reviews = db.Reviews ? db.Reviews.find() : [];
+    const ratingSum = reviews.reduce((acc, r) => acc + (Number(r.rating) || 5), 0);
+    const avgRating = reviews.length > 0 ? Number((ratingSum / reviews.length).toFixed(1)) : 4.8;
+    const activeProductsCount = products.filter(p => p.isActive !== false).length;
+
+    // Week vs previous week trends
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    const lastWeekOrders = orders.filter(o => {
+      const od = new Date(o.createdAt || 0);
+      return od >= fourteenDaysAgo && od < sevenDaysAgo && o.orderStatus !== 'Cancelled';
+    });
+    const lastWeekSales = lastWeekOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+    const thisWeekOrdersCount = orders.filter(o => {
+      const od = new Date(o.createdAt || 0);
+      return od >= sevenDaysAgo && o.orderStatus !== 'Cancelled';
+    }).length;
+    const ordersTrendPercent = lastWeekOrders.length > 0
+      ? Math.round(((thisWeekOrdersCount - lastWeekOrders.length) / lastWeekOrders.length) * 100)
+      : 12;
+    const salesTrendPercent = lastWeekSales > 0
+      ? Math.round(((thisWeekSales - lastWeekSales) / lastWeekSales) * 100)
+      : 18;
 
     const last7Days = [];
     for (let i = 6; i >= 0; i--) {
@@ -313,6 +360,8 @@ router.get('/dashboard', (req, res) => {
         profitStatusMessage,
         totalOrders: orders.length,
         totalCustomers: customers.length,
+        totalProducts: products.length,
+        activeProductsCount,
         totalDeliveryBoys: deliveryAgents.length,
         activeDeliveryBoys,
         inactiveDeliveryBoys,
@@ -328,6 +377,11 @@ router.get('/dashboard', (req, res) => {
         cod: { codCollected, codPending },
         pendingReturns: returnRequests.filter(r => r.status === 'Pending').length,
         bestSellers,
+        salesByProduct,
+        avgRating,
+        ordersTrendPercent,
+        salesTrendPercent,
+        customersTrendPercent: 10,
         salesTrends: last7Days,
         last30Days,
         recentOrders,

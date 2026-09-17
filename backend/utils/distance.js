@@ -26,22 +26,19 @@ function deg2rad(deg) {
 /**
  * Validates if the customer coordinate is within shop delivery radius.
  */
-function validateDeliveryArea(shopLat, shopLon, custLat, custLon, maxRadiusKm = 15) {
-  // If customer coordinates provided, use exact distance
+function validateDeliveryArea(shopLat, shopLon, custLat, custLon, maxRadiusKm = null) {
+  // If customer coordinates provided, calculate distance for informational purposes
   if (custLat && custLon && shopLat && shopLon) {
     const distanceKm = calculateDistanceKm(shopLat, shopLon, custLat, custLon);
-    const isDeliverable = distanceKm <= maxRadiusKm;
     return {
-      isDeliverable,
+      isDeliverable: true,
       distanceKm,
       maxRadiusKm,
-      message: isDeliverable
-        ? `Delivery available (${distanceKm} km from shop)`
-        : `Sorry, delivery is currently available within ${maxRadiusKm} KM only.`
+      message: `Delivery available (${distanceKm} km from mill)`
     };
   }
 
-  // Fallback: If no GPS coords supplied, we allow standard order with simulated local distance
+  // Fallback: If no GPS coords supplied, allow order with standard local distance
   return {
     isDeliverable: true,
     distanceKm: 4.5,

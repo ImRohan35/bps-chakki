@@ -63,10 +63,10 @@ export default function PolicyPages({ policyType = 'return-policy', navigate }) 
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
               <Truck size={24} style={{ color: 'var(--nature-green)' }} />
-              <h1 style={{ fontSize: '1.8rem', fontWeight: 800 }}>15 KM Local Delivery Coverage</h1>
+              <h1 style={{ fontSize: '1.8rem', fontWeight: 800 }}>Doorstep Delivery Coverage</h1>
             </div>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
-              Why we strictly operate within a 15 KM radius
+              Fresh stone-milled flour delivered directly to your doorstep
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', color: 'var(--text-secondary)', lineHeight: 1.7, fontSize: '0.95rem' }}>
@@ -74,9 +74,9 @@ export default function PolicyPages({ policyType = 'return-policy', navigate }) 
                 Unlike industrial grocery brands that pack wheat flour with chemical preservatives for months-long shelf life, <strong>BPS Fresh Mills</strong> delivers fresh flour directly from our chakki stones to your kitchen.
               </p>
 
-              <h3 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '1.1rem' }}>Why 15 KM?</h3>
+              <h3 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '1.1rem' }}>Fresh Stone Mill Delivery</h3>
               <p>
-                By limiting our radius to approximately 15 KM from our milling facility (Sector 14, Delhi NCR), our dedicated delivery executives can guarantee doorstep drop-off within hours of milling. This preserves natural wheat moisture, rich bran fiber, and delicate micronutrients that are normally lost during long transport.
+                Our dedicated delivery executives guarantee doorstep drop-off shortly after milling. This preserves natural wheat moisture, rich bran fiber, and delicate micronutrients that are normally lost during long warehouse storage and transit.
               </p>
 
               <h3 style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '1.1rem' }}>Delivery Charges & Free Delivery</h3>

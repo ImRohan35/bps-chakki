@@ -149,8 +149,28 @@ export default function ProductDetails({ productId, navigate, onNotifyMe }) {
 
   const handleBuyNow = () => {
     if (isOutOfStock) return;
-    addToCart(product, selectedWeight, quantity, selectedTexture);
-    navigate('checkout');
+    const variant = product.weights?.find(w => w.weight === selectedWeight);
+    const unitPrice = variant ? variant.price : product.price;
+
+    const buyNowItem = {
+      productId: product._id || product.id,
+      name: product.name,
+      weight: selectedWeight,
+      texture: selectedTexture || 'Medium',
+      price: unitPrice,
+      originalPrice: (variant && variant.originalPrice) || product.originalPrice,
+      quantity: quantity,
+      image: (product.images && product.images[0]) || product.image || '',
+      maxStock: product.stock !== undefined ? product.stock : 20
+    };
+
+    sessionStorage.setItem('bps_buy_now_item', JSON.stringify(buyNowItem));
+
+    if (!isAuthenticated) {
+      navigate('login');
+    } else {
+      navigate('checkout');
+    }
   };
 
   const handleReviewSubmit = async (e) => {
@@ -398,11 +418,12 @@ export default function ProductDetails({ productId, navigate, onNotifyMe }) {
 
             <button
               onClick={handleBuyNow}
-              style={{ flex: 1.2, padding: '0', height: '48px', backgroundColor: '#C9A44C', color: '#173D32', border: 'none', borderRadius: '8px', fontWeight: 900, fontSize: '1rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(201, 164, 76, 0.35)', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
-              onMouseEnter={e => { e.currentTarget.style.backgroundColor='#B8913B'; }}
-              onMouseLeave={e => { e.currentTarget.style.backgroundColor='#C9A44C'; }}
+              id="details-buy-now-btn"
+              style={{ flex: 1.2, padding: '0', height: '48px', backgroundColor: '#173D32', color: '#FFFFFF', border: 'none', borderRadius: '8px', fontWeight: 900, fontSize: '1rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(23, 61, 50, 0.35)', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor='#0B2921'; }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor='#173D32'; }}
             >
-              <Zap size={18} fill="#173D32" /> Order Now
+              <Zap size={18} fill="#C9A44C" color="#C9A44C" /> Buy Now
             </button>
             
             <button

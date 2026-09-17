@@ -49,6 +49,36 @@ export default function ProductCard({ product, onSelectProduct, onBuyNow, onNoti
     }
   };
 
+  const handleBuyNowClick = (e) => {
+    e.stopPropagation();
+    if (isOutOfStock) return;
+
+    const buyNowItem = {
+      productId: product._id || product.id,
+      name: product.name,
+      weight: selectedWeight,
+      texture: 'Medium',
+      price: currentPrice,
+      originalPrice: originalPrice,
+      quantity: 1,
+      image: product.image || (product.images && product.images[0]) || '',
+      maxStock: product.stock !== undefined ? product.stock : 20
+    };
+
+    sessionStorage.setItem('bps_buy_now_item', JSON.stringify(buyNowItem));
+
+    if (onBuyNow) {
+      onBuyNow(buyNowItem);
+    } else {
+      const token = localStorage.getItem('bps_token');
+      if (!token) {
+        window.location.href = '/login';
+      } else {
+        window.location.href = '/checkout';
+      }
+    }
+  };
+
   const handleWishlist = (e) => {
     e.stopPropagation();
     toggleWishlist(product);
@@ -191,22 +221,85 @@ export default function ProductCard({ product, onSelectProduct, onBuyNow, onNoti
             <Bell size={15} /> Notify When Fresh Batch Ready
           </button>
         ) : (
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            className={`btn-add-cart-premium ${addedNotice ? 'added' : ''}`}
-            id={`add-to-cart-${product._id || product.id}`}
-          >
-            {addedNotice ? (
-              <>
-                <Check size={16} /> Added to Cart!
-              </>
-            ) : (
-              <>
-                <ShoppingBag size={16} /> Add to Cart
-              </>
-            )}
-          </button>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%' }}>
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              className={`btn-add-cart-premium ${addedNotice ? 'added' : ''}`}
+              id={`add-to-cart-${product._id || product.id}`}
+              style={{
+                width: '100%',
+                padding: '0.68rem 0.4rem',
+                fontSize: '0.82rem',
+                fontWeight: 800,
+                borderRadius: '8px',
+                border: '1.5px solid #2E8B57',
+                backgroundColor: addedNotice ? '#2E8B57' : '#FFFFFF',
+                color: addedNotice ? '#FFFFFF' : '#2E8B57',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={e => {
+                if (!addedNotice) {
+                  e.currentTarget.style.backgroundColor = '#2E8B57';
+                  e.currentTarget.style.color = '#FFFFFF';
+                }
+              }}
+              onMouseLeave={e => {
+                if (!addedNotice) {
+                  e.currentTarget.style.backgroundColor = '#FFFFFF';
+                  e.currentTarget.style.color = '#2E8B57';
+                }
+              }}
+            >
+              {addedNotice ? (
+                <>
+                  <Check size={14} /> Added!
+                </>
+              ) : (
+                <>
+                  <ShoppingBag size={14} /> Add to Cart
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleBuyNowClick}
+              id={`buy-now-${product._id || product.id}`}
+              style={{
+                width: '100%',
+                padding: '0.68rem 0.4rem',
+                fontSize: '0.82rem',
+                fontWeight: 900,
+                borderRadius: '8px',
+                border: 'none',
+                backgroundColor: '#173D32',
+                color: '#FFFFFF',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                boxShadow: '0 2px 8px rgba(23, 61, 50, 0.25)',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.backgroundColor = '#0B2921';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.backgroundColor = '#173D32';
+                e.currentTarget.style.transform = 'none';
+              }}
+            >
+              <Zap size={14} fill="#C9A44C" color="#C9A44C" /> Buy Now
+            </button>
+          </div>
         )}
       </div>
     </div>

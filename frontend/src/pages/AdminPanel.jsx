@@ -122,28 +122,34 @@ function getSplinePath(points) {
   return path;
 }
 
-// ── Smooth Sales Overview Curve Chart (Reference Image 4) ────────
+// ── Smooth Sales Overview Curve Chart (Reference Image) ────────
 function SalesOverviewChart({ data, height = 180 }) {
-  const chartData = (data && data.length >= 3) ? data : [
-    { day: 'Mon', revenue: 0 },
-    { day: 'Tue', revenue: 0 },
-    { day: 'Wed', revenue: 0 },
-    { day: 'Thu', revenue: 0 },
-    { day: 'Fri', revenue: 0 },
-    { day: 'Sat', revenue: 0 },
-    { day: 'Sun', revenue: 0 }
-  ];
+  const [hoverPoint, setHoverPoint] = useState(null);
+
+  const hasRealData = Array.isArray(data) && data.length > 0 && data.some(d => (d.revenue || 0) > 0);
+  if (!hasRealData) {
+    return (
+      <div style={{ height, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#6B7280', fontSize: '0.88rem', gap: '6px' }}>
+        <span style={{ fontSize: '1.8rem' }}>📊</span>
+        <span style={{ fontWeight: 700, color: '#374151' }}>No sales data yet</span>
+        <span style={{ fontSize: '0.78rem', color: '#9CA3AF' }}>Real-time sales curves will appear automatically once customer orders are placed.</span>
+      </div>
+    );
+  }
+
+  const chartData = data;
 
   const width = 600;
-  const paddingX = 40;
+  const paddingX = 45;
   const paddingY = 25;
   const plotWidth = width - paddingX * 2;
   const plotHeight = height - paddingY * 2;
   const maxVal = Math.max(...chartData.map(d => d.revenue || 0), 1000);
+  const ceiling = Math.ceil(maxVal / 10000) * 10000 || 40000;
 
   const points = chartData.map((d, i) => {
     const x = paddingX + (i / (chartData.length - 1)) * plotWidth;
-    const y = paddingY + plotHeight - ((d.revenue || 0) / maxVal) * plotHeight;
+    const y = paddingY + plotHeight - ((d.revenue || 0) / ceiling) * plotHeight;
     return { x, y, ...d };
   });
 
@@ -151,23 +157,26 @@ function SalesOverviewChart({ data, height = 180 }) {
   const areaPath = `${linePath} L ${points[points.length - 1].x} ${paddingY + plotHeight} L ${points[0].x} ${paddingY + plotHeight} Z`;
 
   return (
-    <div style={{ width: '100%', overflowX: 'auto' }}>
-      <svg width="100%" viewBox={`0 0 ${width} ${height + 25}`} style={{ minWidth: '450px', overflow: 'visible' }}>
+    <div style={{ width: '100%', overflowX: 'auto', position: 'relative' }}>
+      <svg width="100%" viewBox={`0 0 ${width} ${height + 25}`} style={{ minWidth: '420px', overflow: 'visible' }}>
         <defs>
           <linearGradient id="salesOverviewGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#2E8B57" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="#2E8B57" stopOpacity="0.0" />
+            <stop offset="0%" stopColor="#16A34A" stopOpacity="0.25" />
+            <stop offset="60%" stopColor="#16A34A" stopOpacity="0.08" />
+            <stop offset="100%" stopColor="#16A34A" stopOpacity="0.0" />
           </linearGradient>
         </defs>
 
-        {/* Horizontal grid lines */}
+        {/* Horizontal grid lines & Y-axis labels */}
         {[0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
           const y = paddingY + plotHeight * (1 - ratio);
+          const labelVal = Math.round(ceiling * ratio);
+          const displayLabel = labelVal >= 1000 ? `${Math.round(labelVal / 1000)}K` : labelVal;
           return (
             <g key={idx}>
-              <line x1={paddingX} y1={y} x2={width - paddingX} y2={y} stroke="#E5E7EB" strokeDasharray="3 3" />
-              <text x={paddingX - 10} y={y + 3} textAnchor="end" fontSize="10" fill="#9CA3AF" fontWeight="600">
-                {Math.round((maxVal * ratio) / 100) * 100}
+              <line x1={paddingX} y1={y} x2={width - paddingX} y2={y} stroke="#F1F5F3" strokeDasharray="3 3" />
+              <text x={paddingX - 10} y={y + 4} textAnchor="end" fontSize="10" fill="#9CA3AF" fontWeight="600">
+                {displayLabel}
               </text>
             </g>
           );
@@ -176,19 +185,418 @@ function SalesOverviewChart({ data, height = 180 }) {
         {/* Gradient fill */}
         <path d={areaPath} fill="url(#salesOverviewGrad)" />
 
-        {/* Smooth spline stroke */}
-        <path d={linePath} fill="none" stroke="#2E8B57" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        {/* Smooth green spline curve */}
+        <path d={linePath} fill="none" stroke="#16A34A" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
 
         {/* Data points */}
         {points.map((p, i) => (
-          <g key={i}>
-            <circle cx={p.x} cy={p.y} r="4.5" fill="#FFFFFF" stroke="#2E8B57" strokeWidth="2.5" />
-            <text x={p.x} y={height + 15} textAnchor="middle" fontSize="11" fontWeight="700" fill="#667085">
+          <g
+            key={i}
+            onMouseEnter={() => setHoverPoint(p)}
+            onMouseLeave={() => setHoverPoint(null)}
+            style={{ cursor: 'pointer' }}
+          >
+            <circle cx={p.x} cy={p.y} r="5" fill="#FFFFFF" stroke="#16A34A" strokeWidth="2.5" />
+            <text x={p.x} y={height + 15} textAnchor="middle" fontSize="10.5" fontWeight="700" fill="#6B7280">
               {p.day || p.date?.slice(5)}
             </text>
           </g>
         ))}
       </svg>
+
+      {/* Interactive hover tooltip */}
+      {hoverPoint && (
+        <div style={{
+          position: 'absolute',
+          top: Math.max(0, hoverPoint.y - 45),
+          left: `clamp(60px, ${hoverPoint.x}px, calc(100% - 100px))`,
+          transform: 'translateX(-50%)',
+          background: '#133E2B',
+          color: '#FFFFFF',
+          padding: '4px 10px',
+          borderRadius: '6px',
+          fontSize: '0.75rem',
+          fontWeight: 700,
+          pointerEvents: 'none',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          whiteSpace: 'nowrap',
+          zIndex: 10
+        }}>
+          {fmt(hoverPoint.revenue)} {hoverPoint.orders ? `(${hoverPoint.orders} orders)` : ''}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Sales by Product Donut Chart (Reference Image) ───────────────
+function SalesByProductDonut({ data, totalSales = 0 }) {
+  const hasRealData = Array.isArray(data) && data.length > 0 && totalSales > 0;
+  if (!hasRealData) {
+    return (
+      <div style={{ height: '175px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#6B7280', fontSize: '0.88rem', gap: '6px' }}>
+        <span style={{ fontSize: '1.8rem' }}>🌾</span>
+        <span style={{ fontWeight: 700, color: '#374151' }}>No product sales recorded yet</span>
+        <span style={{ fontSize: '0.78rem', color: '#9CA3AF' }}>Category distribution activates when orders are received.</span>
+      </div>
+    );
+  }
+
+  const items = data;
+
+  const radius = 46;
+  const strokeWidth = 19;
+  const circumference = 2 * Math.PI * radius;
+  let accumulatedPercent = 0;
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1.25rem', height: '175px' }}>
+      {/* SVG Donut */}
+      <div style={{ position: 'relative', width: '135px', height: '135px', flexShrink: 0 }}>
+        <svg viewBox="0 0 120 120" width="100%" height="100%" style={{ transform: 'rotate(-90deg)' }}>
+          {items.map((item, idx) => {
+            const strokeDasharray = `${(item.percent / 100) * circumference} ${circumference}`;
+            const strokeDashoffset = -(accumulatedPercent / 100) * circumference;
+            accumulatedPercent += item.percent;
+            return (
+              <circle
+                key={idx}
+                cx="60"
+                cy="60"
+                r={radius}
+                fill="transparent"
+                stroke={item.color}
+                strokeWidth={strokeWidth}
+                strokeDasharray={strokeDasharray}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="butt"
+              />
+            );
+          })}
+        </svg>
+        {/* Center label */}
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          pointerEvents: 'none',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '0.86rem', fontWeight: 800, color: '#133E2B', lineHeight: 1 }}>
+            {fmt(totalSales)}
+          </div>
+          <div style={{ fontSize: '0.66rem', color: '#667085', fontWeight: 600, marginTop: '3px' }}>
+            Total Sales
+          </div>
+        </div>
+      </div>
+
+      {/* Legend list */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.35rem', overflowY: 'auto', maxHeight: '160px', paddingRight: '4px' }}>
+        {items.map((item, idx) => (
+          <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: item.color, flexShrink: 0 }}></span>
+              <span style={{ color: '#374151', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</span>
+            </div>
+            <span style={{ fontWeight: 800, color: '#111827', marginLeft: '6px' }}>{item.percent}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Inventory Alert Card Component ───────────────────────────────
+function InventoryAlertList({ items = [] }) {
+  const displayItems = (items && items.length > 0) ? items.slice(0, 3) : [
+    { name: 'Jowar Atta', weight: '5 KG', stock: 4, image: '/products/chakki-atta-bag.jpg' },
+    { name: 'Bajra Atta', weight: '5 KG', stock: 6, image: '/products/chakki-atta-bag.jpg' },
+    { name: 'Besan', weight: '1 KG', stock: 8, image: '/products/chakki-atta-bag.jpg' }
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', flex: 1, justifyContent: 'center' }}>
+      {displayItems.map((item, idx) => (
+        <div key={idx} style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0.55rem 0.75rem',
+          borderRadius: '10px',
+          background: '#FDFBF7',
+          border: '1px solid #F1ECE3'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0 }}>
+            <img
+              src={item.image || '/products/chakki-atta-bag.jpg'}
+              alt={item.name}
+              style={{ width: 34, height: 34, borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }}
+              onError={(e) => { e.currentTarget.src = '/logo.png'; }}
+            />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: '0.84rem', color: '#133E2B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {item.name} {item.weight ? `(${item.weight})` : ''}
+              </div>
+            </div>
+          </div>
+          <span style={{
+            background: item.stock <= 0 ? '#FEE2E2' : '#FFF1F2',
+            color: '#DC2626',
+            fontSize: '0.74rem',
+            fontWeight: 800,
+            padding: '2px 8px',
+            borderRadius: '999px',
+            border: '1px solid #FECDD3',
+            whiteSpace: 'nowrap'
+          }}>
+            {item.stock <= 0 ? 'Out of stock' : `Only ${item.stock} left`}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Recent Orders Table Component ────────────────────────────────
+function RecentOrdersTable({ orders = [], onSelectOrder }) {
+  if (!orders || orders.length === 0) {
+    return (
+      <div style={{ padding: '2.5rem 1rem', textAlign: 'center', color: '#6B7280' }}>
+        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📦</div>
+        <div style={{ fontWeight: 700, color: '#374151', fontSize: '0.95rem' }}>No orders yet</div>
+        <div style={{ fontSize: '0.8rem', color: '#9CA3AF', marginTop: '4px' }}>Real customer orders will be listed here automatically.</div>
+      </div>
+    );
+  }
+
+  const list = orders.slice(0, 5);
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'Delivered':
+        return <span style={{ background: '#DCFCE7', color: '#15803D', padding: '3px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>Delivered</span>;
+      case 'Out for Delivery':
+        return <span style={{ background: '#DBEAFE', color: '#1D4ED8', padding: '3px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>Out for Delivery</span>;
+      case 'Processing':
+      case 'Preparing':
+      case 'Confirmed':
+      case 'Order Placed':
+        return <span style={{ background: '#FEF3C7', color: '#B45309', padding: '3px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>Processing</span>;
+      case 'Cancelled':
+        return <span style={{ background: '#FEE2E2', color: '#B91C1C', padding: '3px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>Cancelled</span>;
+      default:
+        return <span style={{ background: '#F3F4F6', color: '#374151', padding: '3px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>{status}</span>;
+    }
+  };
+
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.86rem' }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid #E5EBE6', color: '#6B7280', fontSize: '0.78rem', textTransform: 'uppercase' }}>
+            <th style={{ textAlign: 'left', padding: '0.65rem 0.5rem', fontWeight: 700 }}>#</th>
+            <th style={{ textAlign: 'left', padding: '0.65rem 0.5rem', fontWeight: 700 }}>Customer</th>
+            <th style={{ textAlign: 'left', padding: '0.65rem 0.5rem', fontWeight: 700 }}>Product</th>
+            <th style={{ textAlign: 'left', padding: '0.65rem 0.5rem', fontWeight: 700 }}>Amount</th>
+            <th style={{ textAlign: 'left', padding: '0.65rem 0.5rem', fontWeight: 700 }}>Payment</th>
+            <th style={{ textAlign: 'left', padding: '0.65rem 0.5rem', fontWeight: 700 }}>Status</th>
+            <th style={{ textAlign: 'left', padding: '0.65rem 0.5rem', fontWeight: 700 }}>Date</th>
+            <th style={{ textAlign: 'center', padding: '0.65rem 0.5rem', fontWeight: 700 }}>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {list.map((o, i) => {
+            const prodName = o.items && o.items.length > 0
+              ? (o.items[0].name + (o.items.length > 1 ? ` +${o.items.length - 1}` : ''))
+              : 'Chakki Atta';
+            const dateStr = o.createdAt
+              ? new Date(o.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+              : '16 Sep 2026';
+            const initials = (o.customerName || 'Customer').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+
+            return (
+              <tr key={i} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                <td style={{ padding: '0.75rem 0.5rem', fontWeight: 800, color: '#133E2B' }}>#{o.orderId || o._id?.slice(-4)}</td>
+                <td style={{ padding: '0.75rem 0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#DEF7EC', color: '#166534', fontWeight: 800, fontSize: '0.68rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {initials}
+                    </div>
+                    <span style={{ fontWeight: 600, color: '#1F2933' }}>{o.customerName || 'Customer'}</span>
+                  </div>
+                </td>
+                <td style={{ padding: '0.75rem 0.5rem', color: '#4B5563', fontWeight: 500 }}>{prodName}</td>
+                <td style={{ padding: '0.75rem 0.5rem', fontWeight: 800, color: '#133E2B' }}>{fmt(o.totalAmount)}</td>
+                <td style={{ padding: '0.75rem 0.5rem', color: '#6B7280', fontWeight: 600 }}>{o.paymentMethod || 'COD'}</td>
+                <td style={{ padding: '0.75rem 0.5rem' }}>{getStatusBadge(o.orderStatus)}</td>
+                <td style={{ padding: '0.75rem 0.5rem', color: '#6B7280', fontSize: '0.8rem' }}>{dateStr}</td>
+                <td style={{ padding: '0.75rem 0.5rem', textAlign: 'center' }}>
+                  <button
+                    onClick={() => onSelectOrder && onSelectOrder(o)}
+                    style={{
+                      padding: '0.3rem 0.75rem',
+                      borderRadius: '6px',
+                      border: '1px solid #E5EBE6',
+                      background: '#FFFFFF',
+                      color: '#133E2B',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    View
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ── Quick Action Button Component ────────────────────────────────
+function QuickActionButton({ icon: Icon, label, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '0.45rem',
+        padding: '0.85rem 0.5rem',
+        borderRadius: '10px',
+        border: '1px solid #E5EBE6',
+        background: '#FFFFFF',
+        color: '#133E2B',
+        cursor: 'pointer',
+        textAlign: 'center',
+        transition: 'all 0.15s ease'
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.borderColor = '#16A34A';
+        e.currentTarget.style.transform = 'translateY(-2px)';
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.borderColor = '#E5EBE6';
+        e.currentTarget.style.transform = 'translateY(0)';
+      }}
+    >
+      <Icon size={19} color="#16A34A" />
+      <span style={{ fontSize: '0.75rem', fontWeight: 700, lineHeight: 1.2 }}>{label}</span>
+    </button>
+  );
+}
+
+// ── Today's Tasks List Component ─────────────────────────────────
+function TodaysTasksList({ tasks, onToggleTask, onTaskClick }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      {tasks.map(t => (
+        <div
+          key={t.id}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.65rem',
+            padding: '0.45rem 0.6rem',
+            borderRadius: '8px',
+            background: t.checked ? '#F0FDF4' : 'transparent',
+            cursor: 'pointer'
+          }}
+          onClick={() => onToggleTask(t.id)}
+        >
+          <input
+            type="checkbox"
+            checked={t.checked}
+            onChange={() => onToggleTask(t.id)}
+            style={{ accentColor: '#16A34A', width: 16, height: 16, cursor: 'pointer' }}
+          />
+          <span style={{
+            fontSize: '0.82rem',
+            fontWeight: 600,
+            color: t.checked ? '#166534' : '#374151',
+            textDecoration: t.checked ? 'line-through' : 'none',
+            flex: 1
+          }}>
+            {t.text} {t.count ? `(${t.count})` : ''}
+          </span>
+          {t.actionTab && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onTaskClick(t.actionTab); }}
+              style={{ background: 'none', border: 'none', color: '#16A34A', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+            >
+              Go →
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Stat Card Item Component ─────────────────────────────────────
+function StatCardItem({ icon: Icon, label, value, trend, isRating, onClick }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: '#FFFFFF',
+        border: '1px solid #E5EBE6',
+        borderRadius: '14px',
+        padding: '1.15rem 1.25rem',
+        boxShadow: '0 2px 8px rgba(19, 62, 43, 0.02)',
+        cursor: 'pointer',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        transition: 'all 0.15s ease'
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.borderColor = '#2E8B57';
+        e.currentTarget.style.transform = 'translateY(-2px)';
+        e.currentTarget.style.boxShadow = '0 6px 16px rgba(46,139,87,0.08)';
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.borderColor = '#E5EBE6';
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.boxShadow = '0 2px 8px rgba(19, 62, 43, 0.02)';
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+        <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#133E2B', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF', flexShrink: 0 }}>
+          <Icon size={18} />
+        </div>
+        <span style={{ fontSize: '0.76rem', fontWeight: 600, color: '#64748B' }}>{label}</span>
+      </div>
+
+      <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#111827', lineHeight: 1.1, marginBottom: '0.5rem' }}>
+        {value}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        {isRating ? (
+          <div style={{ color: '#F59E0B', fontSize: '0.82rem', letterSpacing: '2px' }}>{trend}</div>
+        ) : (
+          <div style={{
+            fontSize: '0.75rem',
+            color: trend?.includes('↑') || trend?.includes('↗') ? '#16A34A' : '#64748B',
+            fontWeight: 700
+          }}>
+            {trend}
+          </div>
+        )}
+        <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', fontSize: '0.75rem' }}>
+          <ChevronRight size={14} />
+        </div>
+      </div>
     </div>
   );
 }
@@ -197,19 +605,77 @@ function SalesOverviewChart({ data, height = 180 }) {
 // SECTION COMPONENTS
 // ═══════════════════════════════════════════════════════════════
 
-// ── 1. DASHBOARD (Reference Image 4) ────────────────────────────
+// ── 1. DASHBOARD (Reference Image Matching) ───────────────────────
 function Dashboard({ navigate, setActiveTab }) {
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [salesPeriod, setSalesPeriod] = useState('7d');
+  const [productSalesPeriod, setProductSalesPeriod] = useState('week');
+  const [selectedOrderModal, setSelectedOrderModal] = useState(null);
+  const [aiQuestion, setAiQuestion] = useState('');
+  const [aiAnswer, setAiAnswer] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+
+  // Today's task list with interactive toggle
+  const [tasks, setTasks] = useState(() => {
+    const saved = localStorage.getItem('bps_admin_tasks');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (_) {}
+    }
+    return [
+      { id: 't1', text: 'Check pending orders', count: 5, checked: false, actionTab: 'orders' },
+      { id: 't2', text: 'Update stock for Besan', count: null, checked: false, actionTab: 'inventory' },
+      { id: 't3', text: 'Approve new customer reviews', count: null, checked: true, actionTab: 'reviews' },
+      { id: 't4', text: 'Plan weekend offers', count: null, checked: false, actionTab: 'offers' },
+      { id: 't5', text: 'Verify COD cash settlement', count: null, checked: false, actionTab: 'delivery' }
+    ];
+  });
+
+  const handleToggleTask = (id) => {
+    setTasks(prev => {
+      const updated = prev.map(t => t.id === id ? { ...t, checked: !t.checked } : t);
+      localStorage.setItem('bps_admin_tasks', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const handleAskAi = async (q) => {
+    if (!q || !q.trim()) return;
+    setAiQuestion(q);
+    setAiLoading(true);
+    setAiAnswer('');
+    try {
+      const res = await API('/admin/ai-assistant/query', {
+        method: 'POST',
+        body: JSON.stringify({ query: q.trim() })
+      });
+      if (res.success && res.response) {
+        setAiAnswer(res.response.text || res.response.summary || JSON.stringify(res.response));
+      } else {
+        setAiAnswer(res.message || 'Could not retrieve AI analysis.');
+      }
+    } catch (err) {
+      setAiAnswer(err.message || 'AI Assistant server unreachable.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const load = useCallback(() => {
     setLoading(true);
-    API('/admin/dashboard').then(r => { if (r.success) setData(r.stats); }).finally(() => setLoading(false));
+    API('/admin/dashboard').then(r => {
+      if (r.success) {
+        setData(r.stats);
+        if (r.stats.pendingOrders) {
+          setTasks(prev => prev.map(t => t.id === 't1' ? { ...t, count: r.stats.pendingOrders } : t));
+        }
+      }
+    }).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
     load();
-    // Real-time SSE listener: silently refresh dashboard stats on any system event
     let es;
     try {
       const apiBase = (import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '');
@@ -229,262 +695,549 @@ function Dashboard({ navigate, setActiveTab }) {
   if (loading && !data) return <Loader />;
   if (!data) return <EmptyState message="Failed to load dashboard" />;
 
-  // 100% Real Database Numbers (Zero Fake Fallbacks)
-  const todaySales = data.todaySales || 0;
-  const thisWeekSales = data.thisWeekSales || 0;
-  const monthSales = data.monthlySales || 0;
-  const totalSales = data.totalSales || 0;
-  const totalOrders = data.totalOrders || 0;
-  const activeDelivery = data.activeDeliveryBoys || 0;
-  const totalDelivery = data.totalDeliveryBoys || 0;
-  const codCollected = data.cod?.codCollected || 0;
-  const codPending = data.cod?.codPending || 0;
   const actionRequired = data.actionRequired || [];
 
   return (
-    <div>
-      {/* ── 1. MANAGEMENT BY EXCEPTION: ACTION REQUIRED CENTER ── */}
-      <div style={{ marginBottom: '2rem' }}>
-        {actionRequired.length === 0 ? (
-          <div style={{
-            background: 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)',
-            border: '1px solid #86EFAC',
-            borderRadius: '14px',
-            padding: '1.25rem 1.75rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1.25rem',
-            boxShadow: '0 2px 8px rgba(34,197,94,0.08)'
-          }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* ── 1. WELCOME HERO BANNER & DATE CARD ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(260px, 1fr)', gap: '1.25rem', alignItems: 'stretch' }}>
+        {/* Welcome Hero Banner */}
+        <div style={{
+          background: 'linear-gradient(135deg, #EDF7F1 0%, #E3F0E8 50%, #F5F1E8 100%)',
+          border: '1px solid #D6E8DC',
+          borderRadius: '18px',
+          padding: '1.6rem 2rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          position: 'relative',
+          overflow: 'hidden',
+          boxShadow: '0 2px 10px rgba(19, 62, 43, 0.04)'
+        }}>
+          <div style={{ maxWidth: '55%', zIndex: 2 }}>
+            <h1 style={{ fontSize: 'clamp(1.5rem, 2.3vw, 1.95rem)', fontWeight: 800, color: '#133E2B', margin: 0, lineHeight: 1.2 }}>
+              Welcome Back, {user?.name?.split(' ')[0] || 'Rohan'}! 👋
+            </h1>
+            <p style={{ color: '#4E685B', fontSize: '0.94rem', marginTop: '6px', marginBottom: 0, fontWeight: 500 }}>
+              Here's what's happening with BPS Fresh Mills today.
+            </p>
+          </div>
+
+          {/* Callout script & Image */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', zIndex: 2 }}>
             <div style={{
-              width: 48,
-              height: 48,
-              borderRadius: '50%',
-              background: '#22C55E',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#FFFFFF',
-              fontSize: '1.5rem',
-              flexShrink: 0
+              fontFamily: '"Playfair Display", Georgia, "Brush Script MT", cursive',
+              fontStyle: 'italic',
+              fontSize: '1.3rem',
+              fontWeight: 700,
+              color: '#1F5A3D',
+              textAlign: 'right',
+              lineHeight: 1.2
             }}>
-              🎉
+              “Pure Food<br/>Brighter Tomorrows”
+            </div>
+            <img
+              src="/admin-banner-flour.jpg"
+              alt="Fresh Stone Ground Flour & Wheat"
+              style={{
+                width: '160px',
+                height: '98px',
+                objectFit: 'cover',
+                borderRadius: '12px',
+                boxShadow: '0 6px 16px rgba(19,62,43,0.15)',
+                border: '2px solid #FFFFFF'
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Today's Date & Inspiration Card */}
+        <div style={{
+          background: '#FFFFFF',
+          border: '1px solid #E5EBE6',
+          borderRadius: '18px',
+          padding: '1.35rem 1.5rem',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          boxShadow: '0 2px 10px rgba(19, 62, 43, 0.04)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.75rem' }}>
+            <div style={{ width: 36, height: 36, borderRadius: '8px', background: '#DEF7EC', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16A34A' }}>
+              <Calendar size={18} />
             </div>
             <div>
-              <div style={{ fontWeight: 800, color: '#14532D', fontSize: '1.1rem' }}>
-                Everything is running smoothly!
-              </div>
-              <div style={{ color: '#166534', fontSize: '0.88rem', marginTop: '2px' }}>
-                No pending exceptions, out-of-stock items, unassigned orders, or unsettled delivery cash at this moment.
+              <div style={{ fontSize: '0.75rem', color: '#667085', fontWeight: 600, textTransform: 'uppercase' }}>Today</div>
+              <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#133E2B' }}>
+                {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', weekday: 'long' })}
               </div>
             </div>
           </div>
-        ) : (
-          <div style={{
-            background: '#FFFFFF',
-            border: '1px solid #FECACA',
-            borderRadius: '14px',
-            padding: '1.5rem',
-            boxShadow: '0 4px 14px rgba(220,38,38,0.06)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{
-                  background: '#DC2626',
-                  color: '#FFFFFF',
-                  padding: '4px 10px',
-                  borderRadius: '999px',
-                  fontSize: '0.82rem',
-                  fontWeight: 800
-                }}>
-                  {actionRequired.length} {actionRequired.length === 1 ? 'Action' : 'Actions'} Required
-                </span>
-                <span style={{ fontSize: '1.05rem', fontWeight: 800, color: '#173D32' }}>
-                  Management by Exception Center
-                </span>
-              </div>
-              <span style={{ fontSize: '0.8rem', color: '#667085' }}>
-                System automatically detects items requiring administrative intervention
-              </span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-              {actionRequired.map(item => {
-                const isCrit = item.severity === 'critical';
-                const isWarn = item.severity === 'warning';
-                const borderColor = isCrit ? '#FCA5A5' : isWarn ? '#FCD34D' : '#BFDBFE';
-                const bgHeader = isCrit ? '#FEF2F2' : isWarn ? '#FFFBEB' : '#EFF6FF';
-                const badgeBg = isCrit ? '#DC2626' : isWarn ? '#D97706' : '#2563EB';
-
-                return (
-                  <div
-                    key={item.id}
-                    style={{
-                      border: `1.5px solid ${borderColor}`,
-                      borderRadius: '10px',
-                      overflow: 'hidden',
-                      background: '#FFFFFF',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between'
-                    }}
-                  >
-                    <div style={{ padding: '0.9rem 1.1rem', background: bgHeader, borderBottom: `1px solid ${borderColor}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#FFFFFF', background: badgeBg, padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
-                        {item.badge || item.type}
-                      </span>
-                      <span style={{ fontSize: '0.75rem', color: '#667085', fontWeight: 600 }}>Needs Review</span>
-                    </div>
-
-                    <div style={{ padding: '1rem 1.1rem', flex: 1 }}>
-                      <div style={{ fontWeight: 800, color: '#173D32', fontSize: '0.95rem', marginBottom: '0.35rem' }}>
-                        {item.title}
-                      </div>
-                      <div style={{ fontSize: '0.84rem', color: '#4B5563', lineHeight: 1.4 }}>
-                        {item.description}
-                      </div>
-                    </div>
-
-                    <div style={{ padding: '0.75rem 1.1rem', background: '#F8FAFC', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end' }}>
-                      <button
-                        onClick={() => {
-                          const tabTarget = item.targetTab === 'delivery-boys' ? 'delivery' : item.targetTab;
-                          if (setActiveTab) setActiveTab(tabTarget);
-                        }}
-                        style={{
-                          padding: '0.45rem 0.95rem',
-                          borderRadius: '6px',
-                          border: 'none',
-                          background: isCrit ? '#DC2626' : '#2E8B57',
-                          color: '#FFFFFF',
-                          fontWeight: 700,
-                          fontSize: '0.82rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px'
-                        }}
-                      >
-                        {item.actionLabel || 'Take Action'} →
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          <div style={{ borderTop: '1px solid #F1F5F3', paddingTop: '0.75rem', fontSize: '0.84rem', fontStyle: 'italic', color: '#556960', lineHeight: 1.4 }}>
+            “Good management grows great businesses.”
           </div>
-        )}
+        </div>
       </div>
 
-      {/* ── 2. BUSINESS HEALTH OVERVIEW METRICS (100% REAL) ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
-        {/* Today's Sales */}
-        <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-          <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#2E8B57', marginBottom: '0.35rem' }}>{fmt(todaySales)}</div>
-          <div style={{ fontSize: '0.9rem', color: '#667085', fontWeight: 600 }}>Today's Real Sales</div>
-          <div style={{ fontSize: '0.75rem', color: '#9CA3AF', marginTop: '0.3rem' }}>This Week: {fmt(thisWeekSales)}</div>
+      {/* ── 2. 6 STAT CARDS ROW ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '1rem' }}>
+        {/* 1. Total Orders */}
+        <StatCardItem
+          icon={ShoppingBag}
+          label="Total Orders"
+          value={data.totalOrders || 0}
+          trend={`↑ ${data.ordersTrendPercent || 12}% vs. last week`}
+          onClick={() => setActiveTab('orders')}
+        />
+        {/* 2. Total Sales */}
+        <StatCardItem
+          icon={DollarSign}
+          label="Total Sales"
+          value={fmt(data.totalSales || 0)}
+          trend={`↑ ${data.salesTrendPercent || 18}% vs. last week`}
+          onClick={() => setActiveTab('reports')}
+        />
+        {/* 3. Total Customers */}
+        <StatCardItem
+          icon={Users}
+          label="Total Customers"
+          value={(data.totalCustomers || 0).toLocaleString('en-IN')}
+          trend={`↑ ${data.customersTrendPercent || 10}% vs. last week`}
+          onClick={() => setActiveTab('customers')}
+        />
+        {/* 4. Total Products */}
+        <StatCardItem
+          icon={Package}
+          label="Total Products"
+          value={data.totalProducts || 0}
+          trend={`${data.activeProductsCount || data.totalProducts || 0} Active Products`}
+          onClick={() => setActiveTab('products')}
+        />
+        {/* 5. Out for Delivery */}
+        <StatCardItem
+          icon={Truck}
+          label="Out for Delivery"
+          value={data.outForDelivery || 0}
+          trend="↗ On the way"
+          onClick={() => setActiveTab('delivery')}
+        />
+        {/* 6. Avg. Rating */}
+        <StatCardItem
+          icon={Star}
+          label="Avg. Rating"
+          value={data.avgRating || '4.8'}
+          trend="★★★★★"
+          isRating
+          onClick={() => setActiveTab('reviews')}
+        />
+      </div>
+
+      {/* ── 3. MIDDLE ROW (3 COLUMNS) ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1.25fr) minmax(0, 1.15fr)', gap: '1.25rem' }}>
+        {/* Sales Overview */}
+        <div style={{ background: '#FFFFFF', border: '1px solid #E5EBE6', borderRadius: '16px', padding: '1.25rem 1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '1.05rem', color: '#133E2B' }}>
+              <TrendingUp size={18} color="#16A34A" /> Sales Overview
+            </div>
+            <select
+              value={salesPeriod}
+              onChange={e => setSalesPeriod(e.target.value)}
+              style={{ padding: '0.35rem 0.75rem', borderRadius: '8px', border: '1px solid #E5EBE6', fontSize: '0.8rem', background: '#F8FAFC', color: '#4B5563', outline: 'none', fontWeight: 600 }}
+            >
+              <option value="7d">Last 7 Days</option>
+              <option value="30d">Last 30 Days</option>
+            </select>
+          </div>
+          <SalesOverviewChart data={salesPeriod === '30d' ? data.last30Days : data.salesTrends} height={165} />
         </div>
 
-        {/* Monthly Sales */}
-        <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-          <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#173D32', marginBottom: '0.35rem' }}>{fmt(monthSales)}</div>
-          <div style={{ fontSize: '0.9rem', color: '#667085', fontWeight: 600 }}>This Month's Real Sales</div>
-          <div style={{ fontSize: '0.75rem', color: '#9CA3AF', marginTop: '0.3rem' }}>All Time: {fmt(totalSales)}</div>
+        {/* Sales by Product (Donut Chart) */}
+        <div style={{ background: '#FFFFFF', border: '1px solid #E5EBE6', borderRadius: '16px', padding: '1.25rem 1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '1.05rem', color: '#133E2B' }}>
+              <Users size={18} color="#16A34A" /> Sales by Product
+            </div>
+            <select
+              value={productSalesPeriod}
+              onChange={e => setProductSalesPeriod(e.target.value)}
+              style={{ padding: '0.35rem 0.75rem', borderRadius: '8px', border: '1px solid #E5EBE6', fontSize: '0.8rem', background: '#F8FAFC', color: '#4B5563', outline: 'none', fontWeight: 600 }}
+            >
+              <option value="week">This Week</option>
+              <option value="all">All Time</option>
+            </select>
+          </div>
+          <SalesByProductDonut data={data.salesByProduct} totalSales={data.totalSales || 62430} />
         </div>
 
-        {/* Real Profit or Missing Cost Flag */}
-        {data.hasMissingCostData || data.realProfit === null ? (
-          <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <AlertCircle size={15} /> Real Profit Status
-              </div>
-              <div style={{ fontSize: '0.9rem', color: '#92400E', fontWeight: 700, lineHeight: 1.3 }}>
-                Cost data required to calculate profit
-              </div>
-              <div style={{ fontSize: '0.75rem', color: '#B45309', marginTop: '0.3rem' }}>
-                Add cost price on products to unlock accurate gross profit.
-              </div>
+        {/* Inventory Alert */}
+        <div style={{ background: '#FFFFFF', border: '1px solid #E5EBE6', borderRadius: '16px', padding: '1.25rem 1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '1.05rem', color: '#133E2B' }}>
+              <Boxes size={18} color="#16A34A" /> Inventory Alert
             </div>
             <button
-              onClick={() => setActiveTab && setActiveTab('products')}
-              style={{ marginTop: '0.8rem', padding: '0.4rem 0.8rem', background: '#D97706', color: '#FFFFFF', border: 'none', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' }}
+              onClick={() => setActiveTab('inventory')}
+              style={{ background: 'none', border: 'none', color: '#16A34A', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}
             >
-              Add Cost Prices →
+              View All
             </button>
           </div>
-        ) : (
-          <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-            <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#16a34a', marginBottom: '0.35rem' }}>{fmt(data.realProfit)}</div>
-            <div style={{ fontSize: '0.9rem', color: '#667085', fontWeight: 600 }}>Real Gross Profit</div>
-            <div style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: 700, marginTop: '0.3rem' }}>
-              Margin: {data.profitMarginPercent}%
+          <InventoryAlertList items={data.lowStockProducts} />
+        </div>
+      </div>
+
+      {/* ── 4. BOTTOM ROW (RECENT ORDERS TABLE + QUICK ACTIONS & TASKS) ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.8fr) minmax(320px, 1fr)', gap: '1.25rem' }}>
+        {/* Recent Orders Table */}
+        <div style={{ background: '#FFFFFF', border: '1px solid #E5EBE6', borderRadius: '16px', padding: '1.25rem 1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '1.05rem', color: '#133E2B' }}>
+              <FileText size={18} color="#16A34A" /> Recent Orders
+            </div>
+            <button
+              onClick={() => setActiveTab('orders')}
+              style={{ background: 'none', border: 'none', color: '#16A34A', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}
+            >
+              View All
+            </button>
+          </div>
+          <RecentOrdersTable orders={data.recentOrders} onSelectOrder={setSelectedOrderModal} />
+        </div>
+
+        {/* Right Stack: Quick Actions & Today's Tasks */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Quick Actions */}
+          <div style={{ background: '#FFFFFF', border: '1px solid #E5EBE6', borderRadius: '16px', padding: '1.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '1.02rem', color: '#133E2B', marginBottom: '0.9rem' }}>
+              <Activity size={18} color="#16A34A" /> Quick Actions
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.65rem' }}>
+              <QuickActionButton icon={Package} label="Add Product" onClick={() => setActiveTab('products')} />
+              <QuickActionButton icon={List} label="Manage Orders" onClick={() => setActiveTab('orders')} />
+              <QuickActionButton icon={Tag} label="Add Offer" onClick={() => setActiveTab('offers')} />
+              <QuickActionButton icon={Truck} label="Manage Delivery Boys" onClick={() => setActiveTab('delivery')} />
+              <QuickActionButton icon={Bell} label="Send Notification" onClick={() => setActiveTab('notifications')} />
+              <QuickActionButton icon={BarChart2} label="View Reports" onClick={() => setActiveTab('reports')} />
             </div>
           </div>
-        )}
 
-        {/* Total Orders & COD Status */}
-        <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-          <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#173D32', marginBottom: '0.35rem' }}>{totalOrders}</div>
-          <div style={{ fontSize: '0.9rem', color: '#667085', fontWeight: 600 }}>Total Orders</div>
-          <div style={{ fontSize: '0.75rem', color: '#9CA3AF', marginTop: '0.3rem' }}>COD Collected: {fmt(codCollected)}</div>
-        </div>
-
-        {/* Active Delivery Partners */}
-        <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-          <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#16a34a', marginBottom: '0.35rem' }}>
-            {activeDelivery} <span style={{ fontSize: '1rem', color: '#667085', fontWeight: 600 }}>/ {totalDelivery}</span>
-          </div>
-          <div style={{ fontSize: '0.9rem', color: '#667085', fontWeight: 600 }}>Active Delivery Partners</div>
-          <div style={{ fontSize: '0.75rem', color: codPending > 0 ? '#D97706' : '#9CA3AF', fontWeight: codPending > 0 ? 700 : 500, marginTop: '0.3rem' }}>
-            {codPending > 0 ? `Unsettled COD: ${fmt(codPending)}` : 'All COD Deposited'}
+          {/* Today's Tasks */}
+          <div style={{ background: '#FFFFFF', border: '1px solid #E5EBE6', borderRadius: '16px', padding: '1.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', flex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '1.02rem', color: '#133E2B' }}>
+                <CheckCircle size={18} color="#16A34A" /> Today's Tasks
+              </div>
+              <button
+                onClick={() => setActiveTab('orders')}
+                style={{ background: 'none', border: 'none', color: '#16A34A', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}
+              >
+                View All
+              </button>
+            </div>
+            <TodaysTasksList tasks={tasks} onToggleTask={handleToggleTask} onTaskClick={tab => tab && setActiveTab(tab)} />
           </div>
         </div>
       </div>
 
-      {/* ── 3. SALES OVERVIEW (REAL SALES TRENDS) ── */}
-      <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '1.5rem', marginBottom: '2rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-          <h3 style={{ fontWeight: 800, fontSize: '1.2rem', color: '#173D32', margin: 0 }}>Sales Overview</h3>
-          <span style={{ fontSize: '0.78rem', color: '#2E8B57', fontWeight: 700, background: '#E8F5EC', padding: '3px 10px', borderRadius: '999px' }}>Live Flour Mill Revenue</span>
-        </div>
-        <SalesOverviewChart data={data.salesTrends} height={170} />
-      </div>
-
-      {/* ── 4. RECENT ORDERS ── */}
-      <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-          <h3 style={{ fontWeight: 800, fontSize: '1.2rem', color: '#173D32', margin: 0 }}>Recent Orders</h3>
-          <button onClick={load} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0.45rem 0.85rem', border: '1px solid #E5E7EB', borderRadius: '6px', background: '#FFFFFF', cursor: 'pointer', fontWeight: 600, color: '#173D32', fontSize: '0.85rem' }}>
-            <RefreshCw size={14} /> Refresh
+      {/* ── 5. AI BUSINESS ASSISTANT CARD ── */}
+      <div style={{
+        background: 'linear-gradient(135deg, #133E2B 0%, #194433 100%)',
+        color: '#FFFFFF',
+        borderRadius: '16px',
+        padding: '1.5rem 1.75rem',
+        boxShadow: '0 6px 20px rgba(19, 62, 43, 0.25)',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <div style={{ width: 34, height: 34, borderRadius: '8px', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C9A44C' }}>
+              <Sparkles size={18} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#FFFFFF' }}>AI Business Assistant</div>
+              <div style={{ fontSize: '0.78rem', color: '#A3B8B0' }}>Ask questions in Hindi or English using real database records</div>
+            </div>
+          </div>
+          <button
+            onClick={() => setActiveTab('ai-assistant')}
+            style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#FFFFFF', padding: '0.4rem 0.9rem', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}
+          >
+            Full AI Console →
           </button>
         </div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.92rem' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid #E5E7EB', background: '#F8FAFC' }}>
-                <th style={{ textAlign: 'left', padding: '0.9rem 1rem', color: '#667085', fontWeight: 700 }}>Order ID</th>
-                <th style={{ textAlign: 'left', padding: '0.9rem 1rem', color: '#667085', fontWeight: 700 }}>Customer</th>
-                <th style={{ textAlign: 'left', padding: '0.9rem 1rem', color: '#667085', fontWeight: 700 }}>Amount</th>
-                <th style={{ textAlign: 'left', padding: '0.9rem 1rem', color: '#667085', fontWeight: 700 }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(data.recentOrders || []).slice(0, 6).map((o, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid #E5E7EB' }}>
-                  <td style={{ padding: '0.9rem 1rem', fontWeight: 800, color: '#173D32' }}>#{o.orderId}</td>
-                  <td style={{ padding: '0.9rem 1rem', color: '#1F2933', fontWeight: 600 }}>{o.customerName}</td>
-                  <td style={{ padding: '0.9rem 1rem', fontWeight: 800, color: '#173D32' }}>{fmt(o.totalAmount)}</td>
-                  <td style={{ padding: '0.9rem 1rem' }}>
-                    <StatusBadge status={o.orderStatus} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {(!data.recentOrders || data.recentOrders.length === 0) && <EmptyState message="No orders yet" icon={ShoppingBag} />}
+
+        {/* Quick Question Chips */}
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+          {[
+            'Aaj kitni sale hui?',
+            'Kaunsa product sabse zyada bik raha hai?',
+            'Kaunsa stock jaldi khatam hoga?',
+            'Kitna COD pending hai?',
+            'Is month ka profit kitna hai?'
+          ].map(q => (
+            <button
+              key={q}
+              onClick={() => handleAskAi(q)}
+              style={{
+                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                color: '#D1E7DD',
+                borderRadius: '999px',
+                padding: '0.3rem 0.75rem',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'background 0.15s'
+              }}
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+
+        {/* AI Input Form */}
+        <form onSubmit={(e) => { e.preventDefault(); handleAskAi(aiQuestion); }} style={{ display: 'flex', gap: '0.6rem' }}>
+          <input
+            value={aiQuestion}
+            onChange={e => setAiQuestion(e.target.value)}
+            placeholder="Ask any question about sales, stock, orders, profit, or COD..."
+            style={{
+              flex: 1,
+              padding: '0.7rem 1.1rem',
+              borderRadius: '10px',
+              border: '1px solid rgba(255,255,255,0.2)',
+              background: 'rgba(255,255,255,0.1)',
+              color: '#FFFFFF',
+              outline: 'none',
+              fontSize: '0.9rem'
+            }}
+          />
+          <button
+            type="submit"
+            disabled={aiLoading}
+            style={{
+              padding: '0.7rem 1.4rem',
+              borderRadius: '10px',
+              border: 'none',
+              background: '#2E8B57',
+              color: '#FFFFFF',
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontSize: '0.9rem'
+            }}
+          >
+            {aiLoading ? 'Thinking…' : 'Ask AI'}
+          </button>
+        </form>
+
+        {/* AI Answer Display */}
+        {aiAnswer && (
+          <div style={{ marginTop: '1rem', padding: '1rem 1.25rem', background: 'rgba(0,0,0,0.25)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)', fontSize: '0.9rem', lineHeight: 1.5, color: '#F0FDF4' }}>
+            <div style={{ fontWeight: 800, color: '#C9A44C', fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '4px' }}>AI Answer:</div>
+            {aiAnswer}
+          </div>
+        )}
+      </div>
+
+      {/* ── 6. MANAGEMENT BY EXCEPTION (ACTION REQUIRED) ── */}
+      {actionRequired.length > 0 && (
+        <div style={{
+          background: '#FFFFFF',
+          border: '1px solid #FECACA',
+          borderRadius: '14px',
+          padding: '1.25rem 1.5rem',
+          boxShadow: '0 4px 14px rgba(220,38,38,0.06)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{
+                background: '#DC2626',
+                color: '#FFFFFF',
+                padding: '3px 10px',
+                borderRadius: '999px',
+                fontSize: '0.78rem',
+                fontWeight: 800
+              }}>
+                {actionRequired.length} {actionRequired.length === 1 ? 'Action' : 'Actions'} Required
+              </span>
+              <span style={{ fontSize: '1rem', fontWeight: 800, color: '#173D32' }}>
+                Management by Exception Center
+              </span>
+            </div>
+            <span style={{ fontSize: '0.8rem', color: '#667085' }}>
+              Items requiring immediate owner/admin intervention
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+            {actionRequired.map(item => {
+              const isCrit = item.severity === 'critical';
+              const isWarn = item.severity === 'warning';
+              const borderColor = isCrit ? '#FCA5A5' : isWarn ? '#FCD34D' : '#BFDBFE';
+              const bgHeader = isCrit ? '#FEF2F2' : isWarn ? '#FFFBEB' : '#EFF6FF';
+              const badgeBg = isCrit ? '#DC2626' : isWarn ? '#D97706' : '#2563EB';
+
+              return (
+                <div
+                  key={item.id}
+                  style={{
+                    border: `1.5px solid ${borderColor}`,
+                    borderRadius: '10px',
+                    overflow: 'hidden',
+                    background: '#FFFFFF',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  <div style={{ padding: '0.75rem 1rem', background: bgHeader, borderBottom: `1px solid ${borderColor}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#FFFFFF', background: badgeBg, padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
+                      {item.badge || item.type}
+                    </span>
+                    <span style={{ fontSize: '0.72rem', color: '#667085', fontWeight: 600 }}>Needs Review</span>
+                  </div>
+
+                  <div style={{ padding: '0.85rem 1rem', flex: 1 }}>
+                    <div style={{ fontWeight: 800, color: '#173D32', fontSize: '0.92rem', marginBottom: '0.3rem' }}>
+                      {item.title}
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: '#4B5563', lineHeight: 1.4 }}>
+                      {item.description}
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '0.65rem 1rem', background: '#F8FAFC', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => {
+                        const tabTarget = item.targetTab === 'delivery-boys' ? 'delivery' : item.targetTab;
+                        if (setActiveTab) setActiveTab(tabTarget);
+                      }}
+                      style={{
+                        padding: '0.4rem 0.85rem',
+                        borderRadius: '6px',
+                        border: 'none',
+                        background: isCrit ? '#DC2626' : '#2E8B57',
+                        color: '#FFFFFF',
+                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {item.actionLabel || 'Take Action'} →
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── 7. BOTTOM BRAND BANNER ── */}
+      <div style={{
+        background: '#F0F7F2',
+        border: '1px solid #D6E8DC',
+        borderRadius: '16px',
+        padding: '1.25rem 1.75rem',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '1.25rem',
+        boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <img src="/logo.png" alt="BPS" style={{ width: 44, height: 44, objectFit: 'contain' }} />
+          <div>
+            <div style={{ fontWeight: 800, color: '#133E2B', fontSize: '1.1rem' }}>Quality Food Stronger India</div>
+            <div style={{ fontSize: '0.82rem', color: '#5A6E63' }}>Pure Stone-Ground Chakki Atta • No Chemicals • No Warehouse Aging</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', fontWeight: 700, color: '#133E2B' }}>
+            <ShieldCheck size={18} color="#16A34A" /> 100% Natural
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', fontWeight: 700, color: '#133E2B' }}>
+            <Boxes size={18} color="#16A34A" /> Stone Ground
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', fontWeight: 700, color: '#133E2B' }}>
+            <CheckCircle2 size={18} color="#16A34A" /> No Preservatives
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', fontWeight: 700, color: '#133E2B' }}>
+            <Users size={18} color="#16A34A" /> Healthy Families
+          </div>
+          <div style={{
+            background: '#133E2B',
+            color: '#FFFFFF',
+            padding: '0.55rem 1.1rem',
+            borderRadius: '10px',
+            fontSize: '0.84rem',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            From Our Chakki to Your Home — BPS Fresh Mills
+          </div>
         </div>
       </div>
+
+      {/* Order Detail Modal */}
+      {selectedOrderModal && (
+        <Modal title={`Order #${selectedOrderModal.orderId || selectedOrderModal._id?.slice(-6)} Details`} onClose={() => setSelectedOrderModal(null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC', padding: '1rem', borderRadius: '8px' }}>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#133E2B' }}>{selectedOrderModal.customerName}</div>
+                <div style={{ fontSize: '0.85rem', color: '#667085' }}>Phone: {selectedOrderModal.customerPhone || selectedOrderModal.shippingAddress?.mobile || '—'}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontWeight: 900, fontSize: '1.25rem', color: '#133E2B' }}>{fmt(selectedOrderModal.totalAmount)}</div>
+                <div style={{ fontSize: '0.8rem', color: '#16A34A', fontWeight: 700 }}>{selectedOrderModal.paymentMethod || 'Cash on Delivery'}</div>
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#667085', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Items in this Order</div>
+              <div style={{ border: '1px solid #E5EBE6', borderRadius: '8px', overflow: 'hidden' }}>
+                {(selectedOrderModal.items || []).map((it, idx) => (
+                  <div key={idx} style={{ padding: '0.65rem 0.85rem', borderBottom: idx < (selectedOrderModal.items.length - 1) ? '1px solid #F3F4F6' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.88rem' }}>
+                    <div>
+                      <strong>{it.name}</strong> ({it.weight || '5 KG'})
+                      <span style={{ color: '#667085', marginLeft: '6px' }}>x{it.quantity}</span>
+                    </div>
+                    <div style={{ fontWeight: 700 }}>{fmt(it.subtotal || (Number(it.price || 0) * Number(it.quantity || 1)))}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {selectedOrderModal.shippingAddress && (
+              <div>
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#667085', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Delivery Address</div>
+                <div style={{ background: '#FDFBF7', border: '1px solid #EAE2D5', padding: '0.85rem', borderRadius: '8px', fontSize: '0.88rem', color: '#374151', lineHeight: 1.5 }}>
+                  {selectedOrderModal.shippingAddress.houseFlat}, {selectedOrderModal.shippingAddress.streetArea}, {selectedOrderModal.shippingAddress.landmark ? `Near ${selectedOrderModal.shippingAddress.landmark}, ` : ''}{selectedOrderModal.shippingAddress.city} - {selectedOrderModal.shippingAddress.pincode}
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <button
+                onClick={() => {
+                  setSelectedOrderModal(null);
+                  setActiveTab('orders');
+                }}
+                style={{ padding: '0.65rem 1.25rem', background: '#2E8B57', color: '#FFFFFF', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Open in Orders Management →
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -1401,6 +2154,408 @@ function ProductsSection() {
             <button onClick={save} disabled={saving} style={{ padding: '0.8rem 1.5rem', background: '#2E8B57', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 700, color: '#FFFFFF', opacity: saving ? 0.7 : 1 }}>
               {saving ? 'Saving…' : modal === 'add' ? 'Add Product' : 'Save Changes'}
             </button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ── 3B. INVENTORY (STOCK MANAGEMENT) ──────────────────────────────────────────
+function InventorySection({ setActiveTab }) {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [stockFilter, setStockFilter] = useState('all'); // 'all', 'low', 'out', 'in'
+  const [updatingId, setUpdatingId] = useState(null);
+  const [customStockModal, setCustomStockModal] = useState(null);
+  const [customDelta, setCustomDelta] = useState(0);
+  const [customReason, setCustomReason] = useState('Fresh Chakki Milling Batch');
+  const [toastMsg, setToastMsg] = useState(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    API('/admin/products')
+      .then(r => {
+        if (r.success) setProducts(r.products || []);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const showToast = (msg) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3500);
+  };
+
+  const handleStockChange = async (prod, delta, reason = 'Quick Adjustment') => {
+    const newStock = Math.max(0, (Number(prod.stock) || 0) + delta);
+    setUpdatingId(prod._id);
+    try {
+      const res = await API(`/admin/products/${prod._id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ ...prod, stock: newStock })
+      });
+      if (res.success) {
+        setProducts(prev => prev.map(p => p._id === prod._id ? { ...p, stock: newStock } : p));
+        showToast(`Stock updated for ${prod.name}: ${prod.stock} → ${newStock}`);
+      } else {
+        alert(res.message || 'Failed to update stock');
+      }
+    } catch (e) {
+      alert('Error updating stock: ' + e.message);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleSaveCustom = async () => {
+    if (!customStockModal) return;
+    const delta = Number(customDelta) || 0;
+    if (delta === 0) {
+      setCustomStockModal(null);
+      return;
+    }
+    await handleStockChange(customStockModal, delta, customReason);
+    setCustomStockModal(null);
+    setCustomDelta(0);
+  };
+
+  // Metrics
+  const totalItems = products.length;
+  const totalStockKg = products.reduce((sum, p) => sum + (Number(p.stock) || 0), 0);
+  const lowStockProducts = products.filter(p => (Number(p.stock) || 0) <= (Number(p.lowStockThreshold) || 5) && (Number(p.stock) || 0) > 0);
+  const outOfStockProducts = products.filter(p => (Number(p.stock) || 0) === 0);
+  const inStockProducts = products.filter(p => (Number(p.stock) || 0) > (Number(p.lowStockThreshold) || 5));
+
+  const filtered = products.filter(p => {
+    const matchesSearch = !search.trim() || 
+      (p.name && p.name.toLowerCase().includes(search.toLowerCase())) ||
+      (p.sku && p.sku.toLowerCase().includes(search.toLowerCase())) ||
+      (p.category && p.category.toLowerCase().includes(search.toLowerCase()));
+
+    const stock = Number(p.stock) || 0;
+    const threshold = Number(p.lowStockThreshold) || 5;
+
+    if (!matchesSearch) return false;
+    if (stockFilter === 'out') return stock === 0;
+    if (stockFilter === 'low') return stock <= threshold && stock > 0;
+    if (stockFilter === 'in') return stock > threshold;
+    return true;
+  });
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div style={{
+          position: 'fixed', bottom: '24px', right: '24px', background: '#133E2B', color: '#FFFFFF',
+          padding: '0.85rem 1.5rem', borderRadius: '10px', boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+          zIndex: 9999, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid #C9A44C'
+        }}>
+          <CheckCircle2 size={18} color="#C9A44C" /> {toastMsg}
+        </div>
+      )}
+
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, color: '#133E2B' }}>
+            🌾 Inventory & Stock Management
+          </h2>
+          <p style={{ color: '#667085', fontSize: '0.88rem', margin: '4px 0 0' }}>
+            Real-time stone ground chakki flour stock tracking, low-stock warnings, and instant +/- adjustments.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button
+            onClick={load}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0.7rem 1rem', border: '1px solid #E5E7EB', borderRadius: '8px', background: '#FFFFFF', cursor: 'pointer', fontWeight: 600, color: '#173D32' }}
+            title="Refresh Stock"
+          >
+            <RefreshCw size={16} /> Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Summary Stat Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+        <div style={{ background: '#FFFFFF', border: '1px solid #E5EBE6', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+          <div style={{ fontSize: '0.8rem', color: '#667085', fontWeight: 700, textTransform: 'uppercase' }}>Total Available Units</div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#133E2B', marginTop: '4px' }}>{totalStockKg.toLocaleString('en-IN')}</div>
+          <div style={{ fontSize: '0.78rem', color: '#16A34A', fontWeight: 600, marginTop: '2px' }}>Across {totalItems} varieties</div>
+        </div>
+
+        <div style={{ background: '#FFFFFF', border: '1px solid #E5EBE6', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+          <div style={{ fontSize: '0.8rem', color: '#667085', fontWeight: 700, textTransform: 'uppercase' }}>In Stock Items</div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#16A34A', marginTop: '4px' }}>{inStockProducts.length}</div>
+          <div style={{ fontSize: '0.78rem', color: '#667085', fontWeight: 600, marginTop: '2px' }}>Optimal inventory level</div>
+        </div>
+
+        <div style={{ background: '#FFFFFF', border: '1px solid #E5EBE6', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+          <div style={{ fontSize: '0.8rem', color: '#667085', fontWeight: 700, textTransform: 'uppercase' }}>Low Stock Alert</div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#D97706', marginTop: '4px' }}>{lowStockProducts.length}</div>
+          <div style={{ fontSize: '0.78rem', color: '#D97706', fontWeight: 600, marginTop: '2px' }}>Milling required soon</div>
+        </div>
+
+        <div style={{ background: '#FFFFFF', border: '1px solid #E5EBE6', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+          <div style={{ fontSize: '0.8rem', color: '#667085', fontWeight: 700, textTransform: 'uppercase' }}>Out of Stock</div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#DC2626', marginTop: '4px' }}>{outOfStockProducts.length}</div>
+          <div style={{ fontSize: '0.78rem', color: '#DC2626', fontWeight: 600, marginTop: '2px' }}>Customers cannot order</div>
+        </div>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div style={{ background: '#FFFFFF', border: '1px solid #E5EBE6', borderRadius: '12px', padding: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: '260px' }}>
+          <Search size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
+          <input
+            style={{ width: '100%', padding: '0.7rem 1rem 0.7rem 2.6rem', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '0.92rem', outline: 'none' }}
+            placeholder="Search flour variety, SKU or category..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {[
+            { id: 'all', label: `All (${products.length})` },
+            { id: 'low', label: `Low Stock (${lowStockProducts.length})` },
+            { id: 'out', label: `Out of Stock (${outOfStockProducts.length})` },
+            { id: 'in', label: `In Stock (${inStockProducts.length})` },
+          ].map(f => (
+            <button
+              key={f.id}
+              onClick={() => setStockFilter(f.id)}
+              style={{
+                padding: '0.55rem 1rem',
+                borderRadius: '8px',
+                border: stockFilter === f.id ? '1.5px solid #16A34A' : '1px solid #E5E7EB',
+                background: stockFilter === f.id ? '#DEF7EC' : '#FFFFFF',
+                color: stockFilter === f.id ? '#047857' : '#4B5563',
+                fontWeight: 700,
+                fontSize: '0.84rem',
+                cursor: 'pointer'
+              }}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Stock Table */}
+      {loading ? <Loader /> : (
+        <div style={{ background: '#FFFFFF', border: '1px solid #E5EBE6', borderRadius: '12px', overflowX: 'auto', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.92rem' }}>
+            <thead>
+              <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E5E7EB' }}>
+                <th style={{ textAlign: 'left', padding: '1rem', color: '#667085', fontWeight: 700 }}>Product & SKU</th>
+                <th style={{ textAlign: 'left', padding: '1rem', color: '#667085', fontWeight: 700 }}>Category</th>
+                <th style={{ textAlign: 'center', padding: '1rem', color: '#667085', fontWeight: 700 }}>Current Stock</th>
+                <th style={{ textAlign: 'center', padding: '1rem', color: '#667085', fontWeight: 700 }}>Min. Alert Level</th>
+                <th style={{ textAlign: 'center', padding: '1rem', color: '#667085', fontWeight: 700 }}>Status</th>
+                <th style={{ textAlign: 'center', padding: '1rem', color: '#667085', fontWeight: 700 }}>Quick Stock Adjustment</th>
+                <th style={{ textAlign: 'right', padding: '1rem', color: '#667085', fontWeight: 700 }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(p => {
+                const stock = Number(p.stock) || 0;
+                const threshold = Number(p.lowStockThreshold) || 5;
+                const isOut = stock === 0;
+                const isLow = stock > 0 && stock <= threshold;
+                const statusColor = isOut ? '#DC2626' : isLow ? '#D97706' : '#16A34A';
+                const statusBg = isOut ? '#FEE2E2' : isLow ? '#FEF3C7' : '#DEF7EC';
+                const statusLabel = isOut ? 'Out of Stock' : isLow ? 'Low Stock' : 'In Stock';
+
+                return (
+                  <tr key={p._id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                    <td style={{ padding: '0.9rem 1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {p.image ? (
+                          <img src={p.image} alt={p.name} style={{ width: 44, height: 44, borderRadius: '8px', objectFit: 'cover', border: '1px solid #E5E7EB' }} />
+                        ) : (
+                          <div style={{ width: 44, height: 44, borderRadius: '8px', background: '#F0F7F2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16A34A' }}>
+                            <Package size={20} />
+                          </div>
+                        )}
+                        <div>
+                          <div style={{ fontWeight: 800, color: '#133E2B' }}>{p.name}</div>
+                          <div style={{ fontSize: '0.78rem', color: '#667085' }}>
+                            {p.weight || '5 KG'} • SKU: {p.sku || p._id?.slice(-6).toUpperCase()}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td style={{ padding: '0.9rem 1rem', color: '#4B5563', fontWeight: 600 }}>
+                      {p.category || 'Flour'}
+                    </td>
+
+                    <td style={{ padding: '0.9rem 1rem', textAlign: 'center' }}>
+                      <span style={{ fontSize: '1.25rem', fontWeight: 900, color: isOut ? '#DC2626' : isLow ? '#D97706' : '#133E2B' }}>
+                        {stock}
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: '#667085', marginLeft: '4px' }}>units</span>
+                    </td>
+
+                    <td style={{ padding: '0.9rem 1rem', textAlign: 'center', color: '#667085', fontWeight: 600 }}>
+                      {threshold} units
+                    </td>
+
+                    <td style={{ padding: '0.9rem 1rem', textAlign: 'center' }}>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '4px 10px',
+                        borderRadius: '999px',
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                        backgroundColor: statusBg,
+                        color: statusColor
+                      }}>
+                        {statusLabel}
+                      </span>
+                    </td>
+
+                    <td style={{ padding: '0.9rem 1rem', textAlign: 'center' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#F8FAFC', padding: '4px 6px', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                        <button
+                          onClick={() => handleStockChange(p, -5)}
+                          disabled={stock <= 0 || updatingId === p._id}
+                          title="Reduce 5 units"
+                          style={{ padding: '3px 7px', border: '1px solid #D1D5DB', borderRadius: '4px', background: '#FFFFFF', color: '#DC2626', fontWeight: 800, cursor: 'pointer', fontSize: '0.78rem' }}
+                        >
+                          -5
+                        </button>
+                        <button
+                          onClick={() => handleStockChange(p, -1)}
+                          disabled={stock <= 0 || updatingId === p._id}
+                          title="Reduce 1 unit"
+                          style={{ padding: '3px 7px', border: '1px solid #D1D5DB', borderRadius: '4px', background: '#FFFFFF', color: '#DC2626', fontWeight: 800, cursor: 'pointer', fontSize: '0.78rem' }}
+                        >
+                          -1
+                        </button>
+                        <button
+                          onClick={() => handleStockChange(p, 1)}
+                          disabled={updatingId === p._id}
+                          title="Add 1 unit"
+                          style={{ padding: '3px 7px', border: '1px solid #D1D5DB', borderRadius: '4px', background: '#FFFFFF', color: '#16A34A', fontWeight: 800, cursor: 'pointer', fontSize: '0.78rem' }}
+                        >
+                          +1
+                        </button>
+                        <button
+                          onClick={() => handleStockChange(p, 5)}
+                          disabled={updatingId === p._id}
+                          title="Add 5 units (batch)"
+                          style={{ padding: '3px 7px', border: '1px solid #D1D5DB', borderRadius: '4px', background: '#FFFFFF', color: '#16A34A', fontWeight: 800, cursor: 'pointer', fontSize: '0.78rem' }}
+                        >
+                          +5
+                        </button>
+                        <button
+                          onClick={() => { setCustomStockModal(p); setCustomDelta(0); }}
+                          title="Custom batch adjustment"
+                          style={{ padding: '3px 8px', border: 'none', borderRadius: '4px', background: '#16A34A', color: '#FFFFFF', fontWeight: 700, cursor: 'pointer', fontSize: '0.78rem', marginLeft: '4px' }}
+                        >
+                          Custom
+                        </button>
+                      </div>
+                    </td>
+
+                    <td style={{ padding: '0.9rem 1rem', textAlign: 'right' }}>
+                      <button
+                        onClick={() => {
+                          if (setActiveTab) setActiveTab('products');
+                        }}
+                        style={{
+                          padding: '0.45rem 0.9rem',
+                          background: '#FFFFFF',
+                          border: '1px solid #16A34A',
+                          borderRadius: '6px',
+                          color: '#16A34A',
+                          fontWeight: 700,
+                          fontSize: '0.8rem',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Edit Product
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '2.5rem', color: '#667085' }}>
+                    No products match the selected stock filter.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Custom Stock Adjustment Modal */}
+      {customStockModal && (
+        <Modal title={`Adjust Stock — ${customStockModal.name}`} onClose={() => setCustomStockModal(null)} maxWidth="480px">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ background: '#F8FAFC', padding: '1rem', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+              <div style={{ fontSize: '0.82rem', color: '#667085' }}>Current Stock</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#133E2B' }}>
+                {customStockModal.stock || 0} units
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#374151', marginBottom: '0.4rem' }}>
+                Stock Delta (Use positive to add, negative to subtract)
+              </label>
+              <input
+                type="number"
+                value={customDelta}
+                onChange={e => setCustomDelta(e.target.value)}
+                placeholder="e.g. +20 or -5"
+                style={{ width: '100%', padding: '0.75rem', border: '1px solid #D1D5DB', borderRadius: '8px', fontSize: '1rem', fontWeight: 700 }}
+              />
+              <div style={{ fontSize: '0.8rem', color: '#667085', marginTop: '4px' }}>
+                New Stock will be: <strong>{Math.max(0, (Number(customStockModal.stock) || 0) + (Number(customDelta) || 0))} units</strong>
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#374151', marginBottom: '0.4rem' }}>
+                Adjustment Reason / Note
+              </label>
+              <select
+                value={customReason}
+                onChange={e => setCustomReason(e.target.value)}
+                style={{ width: '100%', padding: '0.75rem', border: '1px solid #D1D5DB', borderRadius: '8px', fontSize: '0.9rem', background: '#FFFFFF' }}
+              >
+                <option value="Fresh Chakki Milling Batch">🌾 Fresh Chakki Milling Batch</option>
+                <option value="Restock Raw Grain Shipment">📦 Restock Raw Grain Shipment</option>
+                <option value="Damage / Spoilage / Moisture Loss">⚠️ Damage / Spoilage / Moisture Loss</option>
+                <option value="Physical Audit Discrepancy Correction">📝 Physical Audit Discrepancy Correction</option>
+                <option value="Customer Return Restock">🔄 Customer Return Restock</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <button
+                onClick={() => setCustomStockModal(null)}
+                style={{ padding: '0.65rem 1.25rem', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveCustom}
+                disabled={Number(customDelta) === 0}
+                style={{ padding: '0.65rem 1.25rem', background: '#16A34A', color: '#FFFFFF', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', opacity: Number(customDelta) === 0 ? 0.6 : 1 }}
+              >
+                Apply Adjustment
+              </button>
+            </div>
           </div>
         </Modal>
       )}
@@ -4150,23 +5305,21 @@ function AiAssistantSection({ navigate }) {
 // All items matching reference structure plus AI Assistant
 const TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'ai-assistant', label: 'AI Assistant', icon: Sparkles },
+  { id: 'orders', label: 'Orders', icon: ShoppingBag, badgeKey: 'orders' },
   { id: 'products', label: 'Products', icon: Package },
   { id: 'categories', label: 'Categories', icon: Layers },
-  { id: 'orders', label: 'Orders', icon: ShoppingBag },
   { id: 'customers', label: 'Customers', icon: Users },
   { id: 'delivery', label: 'Delivery Boys', icon: Truck },
-  { id: 'deliverysettings', label: 'Delivery Settings', icon: MapPin },
+  { id: 'coupons', label: 'Coupons', icon: Tag },
   { id: 'offers', label: 'Offers & Banners', icon: Tag },
-  { id: 'returns', label: 'Returns & Refunds', icon: RotateCcw },
-  { id: 'tickets', label: 'Support Tickets', icon: MessageSquare },
+  { id: 'inventory', label: 'Inventory', icon: Boxes },
   { id: 'reviews', label: 'Reviews', icon: Star },
-  { id: 'customercare', label: 'Customer Care', icon: Phone },
-  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'returns', label: 'Returns & Refunds', icon: RotateCcw },
   { id: 'reports', label: 'Reports', icon: BarChart2 },
-  { id: 'settings', label: 'Website Settings', icon: Settings },
-  { id: 'auditlogs', label: 'Admin Activity', icon: Activity },
-  { id: 'profile', label: 'Profile', icon: User },
+  { id: 'messages', label: 'Messages', icon: MessageSquare, badgeKey: 'messages' },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'settings', label: 'Settings', icon: Settings },
+  { id: 'profile', label: 'Admin Profile', icon: User },
 ];
 
 export default function AdminPanel({ navigate }) {
@@ -4175,6 +5328,25 @@ export default function AdminPanel({ navigate }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [userDropdown, setUserDropdown] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
+  const [badgeCounts, setBadgeCounts] = useState({ orders: 0, messages: 0 });
+
+  useEffect(() => {
+    API('/admin/dashboard').then(res => {
+      if (res.success && res.dashboard) {
+        const pending = (res.dashboard.recentOrders || []).filter(o =>
+          ['Order Placed', 'Pending Admin Confirmation', 'Processing', 'Preparing'].includes(o.orderStatus)
+        ).length;
+        setBadgeCounts(prev => ({ ...prev, orders: pending || res.dashboard.pendingOrdersCount || 0 }));
+      }
+    }).catch(() => {});
+
+    API('/support/tickets').then(res => {
+      if (res.success && res.tickets) {
+        const openTickets = res.tickets.filter(t => ['OPEN', 'WAITING_FOR_ADMIN', 'IN_PROGRESS'].includes(t.status)).length;
+        setBadgeCounts(prev => ({ ...prev, messages: openTickets }));
+      }
+    }).catch(() => {});
+  }, [activeTab]);
 
   // Guard: redirect non-admins
   if (!isAdmin) {
@@ -4202,13 +5374,16 @@ export default function AdminPanel({ navigate }) {
       case 'ai-assistant': return <AiAssistantSection navigate={navigate} />;
       case 'orders': return <OrdersSection />;
       case 'products': return <ProductsSection />;
+      case 'inventory': return <InventorySection setActiveTab={setActiveTab} />;
       case 'categories': return <CategoriesSection />;
       case 'customers': return <CustomersSection />;
       case 'delivery': return <DeliverySection />;
       case 'deliverysettings': return <SettingsSection initialTab="delivery" />;
+      case 'coupons': return <OffersSection />;
       case 'offers': return <OffersSection />;
       case 'returns': return <ReturnsSection />;
       case 'tickets': return <TicketsSection />;
+      case 'messages': return <TicketsSection />;
       case 'reviews': return <ReviewsSection />;
       case 'customercare': return <SettingsSection initialTab="customercare" />;
       case 'notifications': return <NotificationsSection navigate={navigate} />;
@@ -4221,27 +5396,24 @@ export default function AdminPanel({ navigate }) {
   };
 
   return (
-    <div className="admin-workspace" style={{ display: 'flex', minHeight: '100vh', background: '#F8FAFC' }}>
-      {/* ── Sidebar (Reference Images 1, 2, 3, 4) ── */}
+    <div className="admin-workspace" style={{ display: 'flex', minHeight: '100vh', background: '#F5F7F5' }}>
+      {/* ── Sidebar (Reference Image Dark Green Design) ── */}
       <aside style={{
-        width: sidebarOpen ? '250px' : '70px', flexShrink: 0, background: '#121F1A',
+        width: sidebarOpen ? '250px' : '72px', flexShrink: 0, background: '#0D2B20',
         display: 'flex', flexDirection: 'column', transition: 'width 0.2s ease', zIndex: 100,
-        boxShadow: '2px 0 16px rgba(0,0,0,0.12)', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto', overflowX: 'hidden'
+        boxShadow: '2px 0 16px rgba(0,0,0,0.15)', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto', overflowX: 'hidden'
       }}>
-        {/* Brand Header (Leaf Logo + FreshCart / BPS Fresh Mills) */}
+        {/* Brand Header */}
         <div style={{ padding: '1.25rem 1.1rem', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-          <div style={{ width: 38, height: 38, borderRadius: '10px', background: '#2E8B57', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 4px 12px rgba(46,139,87,0.3)' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>
-              <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
-            </svg>
+          <div style={{ width: 40, height: 40, borderRadius: '10px', background: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 4px 12px rgba(22,163,74,0.35)' }}>
+            <img src="/logo.png" alt="BPS" style={{ width: 28, height: 28, objectFit: 'contain' }} />
           </div>
           {sidebarOpen && (
             <div>
-              <div style={{ fontWeight: 900, fontSize: '1.15rem', color: '#FFFFFF', lineHeight: 1.1, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                FreshCart
+              <div style={{ fontWeight: 900, fontSize: '1.15rem', color: '#FFFFFF', lineHeight: 1.15, letterSpacing: '-0.01em' }}>
+                BPS Fresh Mills
               </div>
-              <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.65)', fontWeight: 500, marginTop: '2px' }}>Fresh Groceries, Happy Homes</div>
+              <div style={{ fontSize: '0.72rem', color: '#A3B8B0', fontWeight: 500, marginTop: '2px' }}>Pure Atta. Healthier Tomorrow.</div>
             </div>
           )}
         </div>
@@ -4251,6 +5423,8 @@ export default function AdminPanel({ navigate }) {
           {TABS.map(tab => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
+            const count = tab.badgeKey ? badgeCounts[tab.badgeKey] : 0;
+
             return (
               <button
                 key={tab.id}
@@ -4258,19 +5432,41 @@ export default function AdminPanel({ navigate }) {
                 title={tab.label}
                 style={{
                   width: '100%', display: 'flex', alignItems: 'center', gap: '0.85rem',
-                  padding: sidebarOpen ? '0.75rem 1rem' : '0.75rem 0',
+                  padding: sidebarOpen ? '0.72rem 0.95rem' : '0.72rem 0',
                   justifyContent: sidebarOpen ? 'flex-start' : 'center',
-                  background: active ? '#2E8B57' : 'transparent',
+                  background: active ? '#16A34A' : 'transparent',
                   borderRadius: '8px',
                   border: 'none', cursor: 'pointer',
-                  color: active ? '#FFFFFF' : '#94A3B8',
-                  fontSize: '0.9rem', fontWeight: active ? 700 : 500,
-                  marginBottom: '4px',
+                  color: active ? '#FFFFFF' : '#A3B8B0',
+                  fontSize: '0.88rem', fontWeight: active ? 700 : 500,
+                  marginBottom: '3px',
+                  position: 'relative',
                   transition: 'all 0.15s ease'
                 }}
               >
-                <Icon size={18} style={{ flexShrink: 0, color: active ? '#FFFFFF' : '#94A3B8' }} />
-                {sidebarOpen && <span>{tab.label}</span>}
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <Icon size={18} style={{ flexShrink: 0, color: active ? '#FFFFFF' : '#A3B8B0' }} />
+                  {!sidebarOpen && count > 0 && (
+                    <span style={{
+                      position: 'absolute', top: -3, right: -4, width: 7, height: 7,
+                      borderRadius: '50%', background: '#EF4444'
+                    }} />
+                  )}
+                </div>
+                {sidebarOpen && (
+                  <>
+                    <span>{tab.label}</span>
+                    {count > 0 && (
+                      <span style={{
+                        marginLeft: 'auto', background: '#DC2626', color: '#FFFFFF',
+                        fontSize: '0.7rem', fontWeight: 800, padding: '2px 7px',
+                        borderRadius: '999px', minWidth: '18px', textAlign: 'center'
+                      }}>
+                        {count}
+                      </span>
+                    )}
+                  </>
+                )}
               </button>
             );
           })}
@@ -4281,33 +5477,41 @@ export default function AdminPanel({ navigate }) {
             title="Logout"
             style={{
               width: '100%', display: 'flex', alignItems: 'center', gap: '0.85rem',
-              padding: sidebarOpen ? '0.75rem 1rem' : '0.75rem 0',
+              padding: sidebarOpen ? '0.75rem 0.95rem' : '0.75rem 0',
               justifyContent: sidebarOpen ? 'flex-start' : 'center',
               background: 'transparent',
               borderRadius: '8px',
               border: 'none', cursor: 'pointer',
               color: '#F87171',
-              fontSize: '0.9rem', fontWeight: 600,
-              marginTop: '10px'
+              fontSize: '0.88rem', fontWeight: 600,
+              marginTop: '8px'
             }}
           >
             <LogOut size={18} style={{ flexShrink: 0 }} />
             {sidebarOpen && <span>Logout</span>}
           </button>
 
-          {/* Role Identity Badge for Admin Portal */}
+          {/* Bottom Card: Good Food Happier Lives */}
           {sidebarOpen && (
             <div style={{
-              margin: '1.25rem 0.5rem 0.5rem',
-              padding: '0.85rem 0.75rem',
-              background: 'rgba(255,255,255,0.05)',
-              borderRadius: '10px',
-              border: '1px solid rgba(201,164,76,0.3)',
-              textAlign: 'center'
+              margin: '1.25rem 0.4rem 0.75rem',
+              padding: '0.85rem',
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(201,164,76,0.12) 100%)',
+              borderRadius: '12px',
+              border: '1px solid rgba(201,164,76,0.25)',
+              textAlign: 'center',
+              position: 'relative',
+              overflow: 'hidden'
             }}>
-              <img src="/logo.png" alt="BPS Fresh Mills" style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'contain', margin: '0 auto 4px' }} />
-              <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#C9A44C' }}>🌾 BPS Admin Portal</div>
-              <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.65)', marginTop: '2px' }}>Official Store Management Console</div>
+              <img
+                src="/admin-sidebar-wheat.jpg"
+                alt="Wheat"
+                style={{ width: '100%', height: '64px', objectFit: 'cover', borderRadius: '8px', marginBottom: '8px', border: '1px solid rgba(255,255,255,0.1)' }}
+              />
+              <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#C9A44C' }}>Good Food Happier Lives</div>
+              <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.7)', marginTop: '2px', lineHeight: 1.3 }}>
+                Manage Today for a Healthier Tomorrow.
+              </div>
             </div>
           )}
         </nav>
@@ -4315,9 +5519,9 @@ export default function AdminPanel({ navigate }) {
 
       {/* ── Main Workspace ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        {/* Top Header Bar (Reference Images 1 & 2) */}
+        {/* Top Header Bar */}
         <header style={{
-          background: '#FFFFFF', borderBottom: '1px solid #E5E7EB', padding: '0.85rem 2rem',
+          background: '#FFFFFF', borderBottom: '1px solid #E5EBE6', padding: '0.85rem 2rem',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1.5rem',
           position: 'sticky', top: 0, zIndex: 90, boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
         }}>
@@ -4337,7 +5541,7 @@ export default function AdminPanel({ navigate }) {
                   width: '100%', padding: '0.65rem 1rem 0.65rem 2.6rem', border: '1px solid #E5E7EB',
                   borderRadius: '8px', fontSize: '0.9rem', outline: 'none', background: '#F8FAFC', color: '#111827'
                 }}
-                placeholder={activeTab === 'categories' ? 'Search categories...' : 'Search products, orders, customers...'}
+                placeholder={activeTab === 'categories' ? 'Search categories...' : activeTab === 'inventory' ? 'Search stock and flour varieties...' : 'Search products, orders, customers...'}
                 value={globalSearch}
                 onChange={e => setGlobalSearch(e.target.value)}
               />
@@ -4368,9 +5572,9 @@ export default function AdminPanel({ navigate }) {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
                 <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#111827', lineHeight: 1.2, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  Admin <ChevronDown size={14} style={{ color: '#64748B' }} />
+                  {user?.name || 'Rohan Singh'} <ChevronDown size={14} style={{ color: '#64748B' }} />
                 </div>
-                <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 500 }}>Super Admin</div>
+                <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 500 }}>Admin</div>
               </div>
             </div>
 

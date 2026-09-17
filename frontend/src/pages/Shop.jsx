@@ -103,7 +103,7 @@ export default function Shop({ navigate, onSelectProduct, onNotifyMe }) {
               <CheckCircle2 size={16} /> Preservative-Free
             </span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 700, color: 'var(--nature-green)' }}>
-              <Truck size={16} /> Delivery Within 15 KM
+              <Truck size={16} /> Fast Doorstep Delivery
             </span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 700, color: 'var(--nature-green)' }}>
               <ShieldCheck size={16} /> Cash on Delivery Available

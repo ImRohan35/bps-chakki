@@ -279,7 +279,14 @@ export default function App() {
             onAuthSuccess={(user) => {
               if (user.role === 'admin' || user.role === 'super_admin') navigate('admin');
               else if (user.role === 'delivery') navigate('delivery');
-              else navigate('home');
+              else {
+                const buyNowPending = sessionStorage.getItem('bps_buy_now_item');
+                if (buyNowPending) {
+                  navigate('checkout');
+                } else {
+                  navigate('home');
+                }
+              }
             }}
           />
         )}
@@ -288,7 +295,14 @@ export default function App() {
           <AuthPages
             mode="signup"
             navigate={navigate}
-            onAuthSuccess={() => navigate('home')}
+            onAuthSuccess={() => {
+              const buyNowPending = sessionStorage.getItem('bps_buy_now_item');
+              if (buyNowPending) {
+                navigate('checkout');
+              } else {
+                navigate('home');
+              }
+            }}
           />
         )}
 

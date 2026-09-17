@@ -56,17 +56,10 @@ router.post('/', authenticate, (req, res) => {
       });
     }
 
-    // 2. Validate 15 KM Delivery Distance (Feature 60: Point 5)
+    // 2. Delivery Distance (Informational only - 15 KM restriction removed)
     const custLat = shippingAddress.lat;
     const custLon = shippingAddress.lon;
     const distanceCheck = validateDeliveryArea(shopLat, shopLon, custLat, custLon, maxRadiusKm);
-
-    if (!distanceCheck.isDeliverable) {
-      return res.status(400).json({
-        success: false,
-        message: 'Sorry, this location is outside our delivery area.'
-      });
-    }
 
     // 3. Stock Check & Inventory Decrement Preparation (Feature 60: Points 6-11)
     let subtotal = 0;

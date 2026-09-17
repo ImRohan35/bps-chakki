@@ -28,7 +28,7 @@ async function seedDatabase() {
       callEnabled: true,
       whatsappEnabled: true,
       returnPolicy: 'Because our flours are freshly milled food products with zero preservatives, returns or replacements are accepted within 48 hours of delivery for damaged packaging, wrong product, or verified quality concerns.',
-      terms: 'All flours are stone-ground on order or in daily micro-batches to ensure peak freshness and nutrient retention. Delivery is strictly provided within our 15 KM service radius.',
+      terms: 'All flours are stone-ground on order or in daily micro-batches to ensure peak freshness and nutrient retention. Direct doorstep delivery is provided for every order.',
       privacyPolicy: 'We strictly protect customer phone numbers and delivery addresses. We never share customer data with unauthorized third parties.'
     });
     console.log('✔ Settings initialized.');
@@ -390,7 +390,7 @@ async function seedDatabase() {
         minOrderValue: 400,
         maxDiscount: 40,
         description: 'Free Delivery on orders above ₹400',
-        bannerText: 'FREE DELIVERY: Enjoy free doorstep delivery within 15 KM on orders above ₹400',
+        bannerText: 'FREE DELIVERY: Enjoy free doorstep delivery on orders above ₹400',
         startDate: '2026-01-01T00:00:00Z',
         endDate: '2026-12-31T23:59:59Z',
         isActive: true

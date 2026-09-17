@@ -1058,7 +1058,7 @@ export default function Account({ navigate, onTrackOrder, activeTab: initialTab 
 
               {addresses.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px dashed var(--border-strong)' }}>
-                  No saved addresses. Add one for quick 15 KM deliveries.
+                  No saved addresses. Add one for quick doorstep deliveries.
                 </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
