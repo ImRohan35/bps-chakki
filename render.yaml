@@ -14,6 +14,10 @@ services:
         value: 10000
       - key: FRONTEND_URL
         value: https://bpsfreshmills.in
+      - key: ADMIN_EMAIL
+        value: bpsfreshmills@gmail.com
+      - key: ADMIN_INITIAL_PASSWORD
+        value: bps@2005
       - key: ADMIN_SECRET_PIN
         value: 8899
       - key: JWT_SECRET

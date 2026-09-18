@@ -54,12 +54,17 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow non-browser requests (Postman, curl, server-to-server, mobile app)
     if (!origin) return callback(null, true);
+    
+    // Check if origin matches private LAN IP (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+    const isLanOrigin = /^(https?:\/\/)?(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(origin);
+
     if (
       !IS_PRODUCTION ||
       allowedOrigins.includes(origin) ||
       origin.endsWith('.onrender.com') ||
       origin.includes('localhost') ||
-      origin.includes('127.0.0.1')
+      origin.includes('127.0.0.1') ||
+      isLanOrigin
     ) {
       return callback(null, true);
     }
@@ -169,8 +174,25 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
+const os = require('os');
+
+function getLanIp() {
+  const nets = os.networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === 'IPv4' && !net.internal) {
+        return net.address;
+      }
+    }
+  }
+  return 'localhost';
+}
+
+app.listen(PORT, '0.0.0.0', () => {
+  const lanIp = getLanIp();
   console.log(`🌾 BPS Fresh Mills API Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
-  console.log(`🌾 Production Domains: https://bpsfreshmills.in | https://bpsfreshmills.in/admin | https://bpsfreshmills.in/delivery`);
-  console.log(`🌾 Health Check: http://localhost:${PORT}/api/health`);
+  console.log(`🌾 Local Access:     http://localhost:${PORT}`);
+  console.log(`📱 Mobile/Wi-Fi:    http://${lanIp}:${PORT}`);
+  console.log(`🌾 Production URL:   https://bpsfreshmills.in`);
+  console.log(`🌾 Health Check:     http://localhost:${PORT}/api/health`);
 });
